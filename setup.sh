@@ -1,23 +1,39 @@
-setup.sh#!/bin/bash
-echo "=== Starting VDI Environment Setup ==="
+#!/bin/bash
+echo "========================================="
+echo " Setting up W2 Environment & Tools"
+echo "========================================="
 
-# 1. Install Node.js packages
-npm install
+# 1. Ensure local user bin directory exists and is in PATH
+mkdir -p ~/.local/bin
+export PATH="$HOME/.local/bin:$PATH"
 
-# 2. Install Ollama locally (No sudo required)
-echo "Installing Ollama without root..."
-mkdir -p ~/ollama
-curl -fsSL https://ollama.com/download/ollama-linux-amd64.tar.zst | tar --zstd -xvf - -C ~/ollama
-export PATH="$HOME/ollama/bin:$PATH"
+# 2. Install Ollama locally if missing
+if ! command -v ollama &> /dev/null; then
+    echo "📥 Installing Ollama locally..."
+    curl -L https://ollama.com/download/ollama-linux-amd64.tgz -o ollama.tgz
+    tar -xzf ollama.tgz -C ~/.local/bin/
+    rm ollama.tgz
+else
+    echo "✅ Ollama is already installed."
+fi
 
-# 3. Start the Ollama server in the background
-nohup ollama serve &
+# 3. Start Ollama server in the background if not running
+if ! pgrep -x "ollama" > /dev/null; then
+    echo "🚀 Starting Ollama server..."
+    nohup ollama serve > ollama.log 2>&1 &
+    sleep 3
+else
+    echo "✅ Ollama server is already running."
+fi
 
-# 4. Download OpenClaw framework
-git clone https://github.com/cft0808/edict.git openclaw-framework
+# 4. Pull the lightweight Qwen 2.5 1.5B model
+echo "📥 Pulling qwen2.5:1.5b model..."
+ollama pull qwen2.5:1.5b
 
-# 5. Pull Qwen 2.5
-echo "Pulling Qwen 2.5 model..."
-ollama pull qwen2.5
+# 5. Install Python requirements
+echo "📦 Installing Python dependencies..."
+pip install --user requests
 
-echo "=== Setup Complete! ==="
+echo "========================================="
+echo " Setup Complete! You are ready for W2."
+echo "========================================="
