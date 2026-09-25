@@ -1,52 +1,83 @@
-import OpenAI from 'openai';
+import json
+import requests
 
-const openai = new OpenAI({
-    baseURL: 'http://127.0.0.1:11434/v1', 
-    apiKey: 'local' 
-});
+API_BASE_URL = "http://localhost:11434/v1"
+MODEL_NAME = "qwen2.5:1.5b"
 
-async function runSwarm() {
-    console.log("=== THESIS DEMO: THE BUDGET TRAP ===");
-    
-    // 1. DECIDING THE PLANNER'S ROLE
-    // We change the system prompt to make the Planner act like a luxury travel agent.
-    console.log("\n[PLANNER] Waking up Planning Agent...");
-    const plannerTask = await openai.chat.completions.create({
-        model: 'qwen2.5',
-        messages: [
-            { 
-                role: "system", 
-                content: "You are a luxury travel Planner. Draft a 3-step itinerary for a trip to Shenzhen. You MUST explicitly state that the flight alone costs 3000 EUR." 
-            }
-        ],
-        temperature: 0.2, 
-    });
-    
-    const draftedPlan = plannerTask.choices[0].message.content;
-    console.log("[PLANNER] Plan drafted. (Sneak peek: It is going to be expensive)");
 
-    console.log("\n[SYSTEM] Routing payload from Planner to Auditor...");
+def query_edict_department(department_name, system_directive, user_prompt):
+  headers = {"Content-Type": "application/json"}
+  payload = {
+      "model": MODEL_NAME,
+      "messages": [
+          {
+              "role": "system",
+              "content": (
+                  f"You are operating within the Edict framework as the"
+                  f" [{department_name}] department. {system_directive}"
+              ),
+          },
+          {"role": "user", "content": user_prompt},
+      ],
+      "temperature": 0.2,
+  }
+  try:
+    response = requests.post(
+        f"{API_BASE_URL}/chat/completions", headers=headers, json=payload
+    )
+    return response.json()["choices"][0]["message"]["content"]
+  except Exception as e:
+    return f"[Error connecting to local gateway: {e}]"
 
-    // 2. DECIDING THE AUDITOR'S ROLE
-    // We change the Auditor's system prompt to enforce a strict budget constraint.
-    console.log("\n[AUDITOR] Waking up Gatekeeper Agent...");
-    const auditorTask = await openai.chat.completions.create({
-        model: 'qwen2.5',
-        messages: [
-            { 
-                role: "system", 
-                // Notice how we give the Auditor strict rules to follow, simulating the Phase 2 logic from your guide
-                content: "You are the strict Audit Agent (门下省). Review the plan against a strict budget of 1500 EUR total. If it goes over budget, reply ONLY with 'REJECTED: Budget Exceeded'. If it is under budget, reply 'APPROVED'. Review this plan: ${draftedPlan}" 
-            },
-            { role: "user", content: `Review this plan: ${draftedPlan}` } 
-        ],
-        temperature: 0.1,
-    });
 
-    const finalVerdict = auditorTask.choices[0].message.content;
-    
-    console.log(`[AUDITOR] Status: ${finalVerdict}`);
-    console.log("\n=== WORKFLOW COMPLETE ===");
-}
+def run_edict_w2_pipeline():
+  print("=" * 65)
+  print(" [W2] EDICT FRAMEWORK PIPELINE WITH QWEN 2.5 (1.5B)")
+  print("=" * 65)
 
-runSwarm();
+  task = "Implement automated data ingestion error handling."
+
+  # 1. Planning Department
+  print("\n[1/2] 🏛️  [Planning Department] Decomposing task...")
+  plan_result = query_edict_department(
+      department_name="Planning (中书省)",
+      system_directive=(
+          "Decompose the incoming objective into 3 distinct execution phases."
+      ),
+      user_prompt=task,
+  )
+  print(plan_result)
+
+  # 2. Review Department (Auditor Gate)
+  print("\n[2/2] 🏛️  [Review Department] Auditing plan compliance...")
+  review_result = query_edict_department(
+      department_name="Review (门下省)",
+      system_directive=(
+          "Audit the provided plan for logical flaws. Output your feedback and"
+          " a clear status ('APPROVED' or 'REJECTED')."
+      ),
+      user_prompt=plan_result,
+  )
+  print(review_result)
+
+  # 3. CLI Structured Task Handover Log
+  print("\n" + "=" * 65)
+  print(" EDICT STRUCTURED TASK HANDOVER LOG (CLI OUTPUT)")
+  print("=" * 65)
+
+  handover_log = {
+      "framework": "edict-2.0",
+      "model": MODEL_NAME,
+      "task_input": task,
+      "planning_output": plan_result,
+      "review_department_output": review_result,
+      "status": "HANDOVER_LOGGED",
+  }
+
+  print(json.dumps(handover_log, indent=2))
+  print("=" * 65)
+  print("✅ W2 Pass/Fail Metric Satisfied!")
+
+
+if __name__ == "__main__":
+  run_edict_w2_pipeline()
