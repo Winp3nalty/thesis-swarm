@@ -1,148 +1,227 @@
-import json
 from openai import OpenAI
-from pydantic import ValidationError
-from schemas import ExpeditionPlan, AuditResult
-import subprocess
-import time
-import urllib.request
-import os
+from pydantic import BaseModel, ValidationError
+from schemas import RoughItinerary, ExpeditionPlan, AuditResult
 
-def ensure_ollama_running():
-    """Checks if Ollama is listening; if not, starts the background process."""
-    try:
-        urllib.request.urlopen("http://localhost:11434/api/tags", timeout=1)
-        return
-    except Exception:
-        print("[INFO] Ollama server is not running. Launching background process...")
-        local_app_data = os.environ.get("LOCALAPPDATA", "")
-        ollama_bin = os.path.join(local_app_data, "Programs", "Ollama", "ollama.exe")
-        subprocess.Popen([ollama_bin, "serve"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        
-        # Wait up to 10 seconds for the server to become ready
-        for _ in range(10):
-            try:
-                urllib.request.urlopen("http://localhost:11434/api/tags", timeout=1)
-                print("[INFO] Ollama server successfully started.")
-                return
-            except Exception:
-                time.sleep(1)
-        print("[WARNING] Ollama process launched, but connection check timed out.")
-
-ensure_ollama_running()
-
-# 1. Initialize local Ollama client pointing to your local RTX A5000
-client = OpenAI(
-    base_url="http://localhost:11434/v1",
-    api_key="ollama",
-)
-
+client = OpenAI(base_url="http://localhost:11434/v1", api_key="ollama")
 MODEL_NAME = "qwen2.5:7b"
+
 MAX_BUDGET_EUR = 1200.0
 REQUIRED_HUBS = ["DJI", "HAX", "Huaqiangbei"]
 
-def get_budget_value(plan: ExpeditionPlan) -> float:
-    """Safely extract the total budget/cost field regardless of exact field naming."""
-    data = plan.model_dump()
-    for key, val in data.items():
-        if isinstance(val, (int, float)) and ("cost" in key.lower() or "budget" in key.lower()):
-            return float(val)
-    return 0.0
 
-def planning_agent(user_request: str, critique_feedback: list[str] = None) -> ExpeditionPlan:
-    """Planning Agent: Generates or updates the itinerary based on schema and critiques."""
-    system_prompt = (
-        "You are the Lead Planning Agent for global technical expeditions.\n"
-        "You must respond ONLY with a raw JSON object matching this exact JSON schema:\n"
-        f"{json.dumps(ExpeditionPlan.model_json_schema(), indent=2)}\n\n"
-        "Do not wrap the JSON in markdown code blocks. Output raw JSON only."
-    )
-    
-    user_prompt = f"User Request: {user_request}\n"
-    if critique_feedback:
-        user_prompt += (
-            "\nATTENTION: Your previous plan was REJECTED by the Auditor with the following errors:\n"
-            + "\n".join(f"- {note}" for note in critique_feedback)
-            + "\nPlease revise the itinerary to strictly fix these violations while maintaining valid JSON."
-        )
-
-    response = client.chat.completions.create(
+def call_structured_llm(
+    system_prompt: str,
+    user_prompt: str,
+    response_model: type[BaseModel],
+    temperature: float = 0.2,
+):
+    completion = client.beta.chat.completions.parse(
         model=MODEL_NAME,
         messages=[
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": user_prompt},
         ],
-        temperature=0.2,
+        response_format=response_model,
+        temperature=temperature,
     )
-    raw_content = response.choices[0].message.content.strip()
-    if raw_content.startswith("```"):
-        raw_content = raw_content.strip("`").removeprefix("json").strip()
-    return ExpeditionPlan.model_validate_json(raw_content)
+    return completion.choices[0].message.parsed
 
-def auditor_agent(plan: ExpeditionPlan) -> AuditResult:
-    """Auditor Agent: Deterministic gatekeeper checking hard constraints."""
-    critique_notes = []
-    
-    # Check 1: Budget Ceiling
-    total_cost = get_budget_value(plan)
-    if total_cost > MAX_BUDGET_EUR:
-        critique_notes.append(
-            f"Budget exceeded: Total cost is {total_cost:.2f} EUR, "
-            f"which exceeds the maximum allowance of {MAX_BUDGET_EUR:.2f} EUR."
+
+# ==========================================
+# AGENT 1: Lead Route & Tech Planner
+# ==========================================
+def agent_tech_planner(
+    user_request: str,
+    previous_plan: RoughItinerary = None,
+    critique_feedback: list[str] = None,
+) -> RoughItinerary:
+    print("  [Agent 1: Tech Planner] Designing high-level technical itinerary...")
+    system_prompt = (
+        "You are the Lead Technical Route Planner for engineering expeditions. "
+        "Select high-impact robotics labs and hardware hubs for each day of the trip."
+    )
+    user_prompt = f"User Request: {user_request}\n"
+
+    if previous_plan and critique_feedback:
+        user_prompt += (
+            f"\nYOUR PREVIOUS DRAFT:\n{previous_plan.model_dump_json(indent=2)}\n"
+            "\nFIX THESE HUB ERRORS WITHOUT REMOVING EXISTING VALID HUBS:\n"
+            + "\n".join(f"- {note}" for note in critique_feedback)
         )
-    
-    # Check 2: Mandatory Hardware Hubs in Shenzhen (searches full JSON text)
-    full_plan_text = plan.model_dump_json().lower()
-    for hub in REQUIRED_HUBS:
-        if hub.lower() not in full_plan_text:
-            critique_notes.append(
-                f"Missing mandatory technical hub: '{hub}' was not included in any day's schedule."
-            )
-            
-    passed = len(critique_notes) == 0
-    return AuditResult(passed=passed, critique_notes=critique_notes)
+    return call_structured_llm(system_prompt, user_prompt, RoughItinerary)
 
-def run_swarm_loop(request: str, max_iterations: int = 4):
-    """Closed-loop feedback control runner."""
-    print("=" * 60)
-    print(f"[INPUT] User Expedition Request:\n{request}")
-    print("=" * 60)
+
+# ==========================================
+# AGENT 2: Logistics & Budget Specialist
+# ==========================================
+def agent_logistics_specialist(
+    rough_plan: RoughItinerary,
+    budget_cap: float,
+    previous_detailed: ExpeditionPlan = None,
+    critique_feedback: list[str] = None,
+) -> ExpeditionPlan:
+    print("  [Agent 2: Logistics Specialist] Enforcing time slots, transit, and EUR costs...")
+    system_prompt = (
+        "You are the Logistics & Budget Specialist. "
+        "Expand the rough itinerary into a detailed daily schedule with start_time, end_time, "
+        f"transit_mode, and cost_eur. Keep total costs strictly under {budget_cap} EUR."
+    )
+    user_prompt = f"Rough Outline to Follow:\n{rough_plan.model_dump_json(indent=2)}\n"
+
+    if previous_detailed and critique_feedback:
+        user_prompt += (
+            f"\nYOUR PREVIOUS SCHEDULE DRAFT:\n{previous_detailed.model_dump_json(indent=2)}\n"
+            "\nFIX THESE LOGISTICS/BUDGET ERRORS (DO NOT DROP ANY HUBS):\n"
+            + "\n".join(f"- {note}" for note in critique_feedback)
+        )
+    return call_structured_llm(system_prompt, user_prompt, ExpeditionPlan)
+
+
+# ==========================================
+# AGENT 3: Chief Auditor Agent (Router + Gatekeeper)
+# ==========================================
+def agent_auditor(plan: ExpeditionPlan) -> AuditResult:
+    print("  [Agent 3: Auditor Agent] Evaluating feasibility and routing feedback...")
+    actual_sum = sum(act.cost_eur for day in plan.days for act in day.activities)
+    plan_text = plan.model_dump_json().lower()
+    missing_hubs = [h for h in REQUIRED_HUBS if h.lower() not in plan_text]
+
+    system_prompt = (
+        "You are the Chief Expedition Auditor Agent. "
+        "Review the expedition plan and telemetry facts.\n"
+        "- If mandatory hubs are missing, set passed=False and failed_agent='tech_planner'.\n"
+        "- If all hubs are present but budget or schedule fails, set passed=False and failed_agent='logistics'.\n"
+        "- If everything is satisfied, set passed=True and failed_agent='none'."
+    )
+    user_prompt = (
+        f"Max Allowed Budget: {MAX_BUDGET_EUR} EUR\n"
+        f"Actual Summed Cost: {actual_sum:.2f} EUR\n"
+        f"Currently Missing Hubs: {missing_hubs}\n\n"
+        f"Full Plan:\n{plan.model_dump_json(indent=2)}"
+    )
+    audit = call_structured_llm(system_prompt, user_prompt, AuditResult, temperature=0.0)
+
+    # Deterministic routing & safety net
+    if missing_hubs:
+        audit.passed = False
+        audit.failed_agent = "tech_planner"
+        for h in missing_hubs:
+            if not any(h.lower() in note.lower() for note in audit.critique_notes):
+                audit.critique_notes.append(f"Missing mandatory hub: {h}")
+    elif actual_sum > MAX_BUDGET_EUR:
+        audit.passed = False
+        audit.failed_agent = "logistics"
+        audit.critique_notes.append(
+            f"Budget exceeded: {actual_sum:.2f} EUR > {MAX_BUDGET_EUR} EUR. Reduce activity or transit costs."
+        )
+
+    return audit
+
+
+# ==========================================
+# SWARM ORCHESTRATOR (Targeted State Machine)
+# ==========================================
+def apply_fault_injection(
+    detailed_plan: ExpeditionPlan,
+    iteration: int,
+    inject_mode: str = None,
+) -> ExpeditionPlan:
+    """
+    Artificially injects controlled faults into the state object to test
+    closed-loop disturbance rejection and routing logic.
+    """
+    if not inject_mode:
+        return detailed_plan
+
+    # Test 1: Force a missing hub on Iteration 1 -> Should route to TECH_PLANNER
+    if inject_mode == "missing_hub" and iteration == 1:
+        print("  [FAULT INJECTED] Sabotaging plan: Wiping 'HAX' from Iteration 1 to test Outer Loop...")
+        raw_str = detailed_plan.model_dump_json()
+        corrupted_str = raw_str.replace("HAX", "Generic_Cafe").replace("hax", "generic_cafe")
+        return ExpeditionPlan.model_validate_json(corrupted_str)
+
+    # Test 2: Force a budget overrun on Iteration 1 -> Should skip Agent 1 & route to LOGISTICS
+    if inject_mode == "budget_spike" and iteration == 1:
+        print("  [FAULT INJECTED] Sabotaging plan: Spiking Day 1 cost to 5000 EUR to test Inner Loop...")
+        detailed_plan.days[0].activities[0].cost_eur = 5000.0
+        return detailed_plan
+
+    # Test 3: Force budget overrun on Iterations 1 & 2 -> Should trigger ESCALATION to Agent 1
+    if inject_mode == "saturation_escalation" and iteration in (1, 2):
+        print(f"  [FAULT INJECTED] Sabotaging plan (Iter {iteration}): Locking cost at 5000 EUR to force Escalation...")
+        detailed_plan.days[0].activities[0].cost_eur = 5000.0
+        return detailed_plan
+
+    return detailed_plan
+def run_swarm_loop(request: str, max_iterations: int = 6, inject_mode: str = None):
+    print("=" * 65)
+    print(f"[MISSION START] Request:\n{request}")
+    print("=" * 65)
 
     critique_feedback = []
-    iteration = 1
+    rough_plan = None
+    detailed_plan = None
+    target_agent = "tech_planner"
+    logistics_retries = 0  # Tracks consecutive inner-loop failures
 
-    while iteration <= max_iterations:
-        print(f"\n--- [Iteration {iteration}] Planning Agent Generating ---")
+    for iteration in range(1, max_iterations + 1):
+        print(f"\n>>> --- [Iteration {iteration}] Routing to: {target_agent.upper()} --- <<<")
         try:
-            plan = planning_agent(request, critique_feedback)
-            total_cost = get_budget_value(plan)
-            print(f"[OK] Generated Valid Plan | Estimated Cost: {total_cost:.2f} EUR")
+            if target_agent == "tech_planner" or rough_plan is None:
+                rough_plan = agent_tech_planner(request, rough_plan, critique_feedback)
+                detailed_plan = agent_logistics_specialist(rough_plan, MAX_BUDGET_EUR)
+                logistics_retries = 0  # Reset counter after outer-loop replanning
+            else:
+                print(f"  [Router] Skipping Agent 1 -> Direct fix in Agent 2 (Attempt {logistics_retries})...")
+                detailed_plan = agent_logistics_specialist(
+                    rough_plan, MAX_BUDGET_EUR, detailed_plan, critique_feedback
+                )
+
+        # ---> INJECT FAULT HERE BEFORE AUDITOR SEES IT <---
+            detailed_plan = apply_fault_injection(detailed_plan, iteration, inject_mode)
+
+            total_cost = sum(act.cost_eur for day in detailed_plan.days for act in day.activities)
+            print(f"  [Pipeline Output] Generated {len(detailed_plan.days)} days | Summed Cost: {total_cost:.2f} EUR")
+
+            total_cost = sum(act.cost_eur for day in detailed_plan.days for act in day.activities)
+            print(f"  [Pipeline Output] Generated {len(detailed_plan.days)} days | Summed Cost: {total_cost:.2f} EUR")
         except ValidationError as e:
-            print(f"[FAIL] Schema validation error on iteration {iteration}: {e}")
-            critique_feedback = [f"JSON schema validation failed: {str(e)}"]
-            iteration += 1
+            print(f"  [Schema Error] Parsing failed on iteration {iteration}: {e}")
+            critique_feedback = [f"Schema error: {str(e)}"]
             continue
 
-        print(f"--- [Iteration {iteration}] Auditor Agent Verifying ---")
-        audit = auditor_agent(plan)
+        audit = agent_auditor(detailed_plan)
 
         if audit.passed:
-            print(f"\n>>> [SUCCESS] Plan Approved by Auditor on iteration {iteration}!")
-            print(plan.model_dump_json(indent=2))
-            return plan
+            print(f"\n[MISSION SUCCESS] Plan APPROVED by Auditor Agent on Iteration {iteration}!")
+            print(detailed_plan.model_dump_json(indent=2))
+            return detailed_plan
         else:
-            print(f"[REJECTED] Auditor flagged {len(audit.critique_notes)} issue(s):")
+            print(f"\n[REJECTED] Blame assigned to: [{audit.failed_agent.upper()}]")
             for note in audit.critique_notes:
-                print(f"  * {note}")
-            critique_feedback = audit.critique_notes
-            iteration += 1
+                print(f"   * {note}")
 
-    print(f"\n[ABORT] Exceeded maximum iterations ({max_iterations}) without convergence.")
+            critique_feedback = audit.critique_notes
+            target_agent = audit.failed_agent
+
+            # FAULT ESCALATION LOGIC:
+            # If Agent 2 fails twice in a row, the rough outline itself is infeasible!
+            if target_agent == "logistics":
+                logistics_retries += 1
+                if logistics_retries >= 2:
+                    print("  [ESCALATION] Agent 2 saturated! Escalating fault back to Agent 1 to restructure hubs...")
+                    target_agent = "tech_planner"
+                    critique_feedback.append(
+                        "ESCALATION: Logistics could not fit your hubs within budget/time constraints. "
+                        "Simplify or redistribute target_hubs across days to make the schedule cheaper and feasible."
+                    )
+
+    print(f"\n[ABORTED] Could not converge within {max_iterations} iterations.")
     return None
 
+
 if __name__ == "__main__":
-    # Intentionally omit hub names in the initial prompt so Iteration 1 triggers a rejection!
-    test_request = (
-        "Organize a 3-day robotics and hardware technical expedition to Shenzhen. "
-        "Strict total budget is 1200 EUR."
-    )
-    run_swarm_loop(test_request)
+    test_request = "Organize a 3-day robotics expedition to Shenzhen. Strict budget ceiling is 1200 EUR."
+
+    # Choose: None, "missing_hub", "budget_spike", or "saturation_escalation"
+    run_swarm_loop(test_request, max_iterations=6, inject_mode="budget_spike")
