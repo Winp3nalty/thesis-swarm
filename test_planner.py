@@ -19,7 +19,7 @@ The total budget must be under 1200 EUR.
 """
 
 def generate_plan():
-    print("Calling local model on RTX A5000...")
+    print("Calling local model...")
     response = client.chat.completions.create(
         model="qwen2.5:7b",
         messages=[
@@ -29,6 +29,8 @@ def generate_plan():
         temperature=0.2,
     )
     raw_content = response.choices[0].message.content.strip()
+
+    print(raw_content)
 
     if raw_content.startswith("```"):
         raw_content = raw_content.split("```")[1]

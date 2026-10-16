@@ -4,3 +4,4 @@ __pycache__/
 *.pyc
 ollama_models/
 .vs/
+/thesis_week2
