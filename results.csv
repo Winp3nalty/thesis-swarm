@@ -27,3 +27,6 @@
 2026-11-04T09:18:39,qwen2.5:7b,missing_hub,2,SUCCESS,25.43,0
 2026-11-04T09:19:07,qwen2.5:7b,budget_spike,2,SUCCESS,28.49,0
 2026-11-04T09:20:03,qwen2.5:7b,saturation_escalation,5,SUCCESS,56.14,0
+2026-11-04T09:46:04,qwen2.5:7b,none,2,SUCCESS,18.49,0
+2026-11-04T09:46:18,qwen2.5:7b,missing_hub,2,SUCCESS,13.36,0
+2026-11-04T09:46:32,qwen2.5:7b,budget_spike,2,SUCCESS,14.61,0

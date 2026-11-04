@@ -1,0 +1,15 @@
+{"type": "note", "agent": "user", "message": "handoff -> tech_planner: new expedition request", "ts": "2026-11-04T09:46:18"}
+{"type": "transition", "from": "pending", "to": "planning", "agent": "tech_planner", "note": "", "ts": "2026-11-04T09:46:18"}
+{"type": "note", "agent": "tech_planner", "message": "handoff -> logistics: rough itinerary, 3 day(s)", "ts": "2026-11-04T09:46:20"}
+{"type": "transition", "from": "planning", "to": "scheduling", "agent": "logistics", "note": "", "ts": "2026-11-04T09:46:20"}
+{"type": "note", "agent": "logistics", "message": "handoff -> auditor: 3 day(s), 200.00 EUR", "ts": "2026-11-04T09:46:23"}
+{"type": "transition", "from": "scheduling", "to": "reviewing", "agent": "auditor", "note": "", "ts": "2026-11-04T09:46:23"}
+{"type": "note", "agent": "auditor", "message": "rejected, blame=tech_planner: The expedition is missing the following hubs: 'DJI', 'HAX', 'Huaqiangbei'. These hubs are critical for the success of the expedition and should be included.", "ts": "2026-11-04T09:46:24"}
+{"type": "note", "agent": "auditor", "message": "handoff -> tech_planner: rejected with 1 note(s)", "ts": "2026-11-04T09:46:24"}
+{"type": "transition", "from": "reviewing", "to": "planning", "agent": "tech_planner", "note": "", "ts": "2026-11-04T09:46:24"}
+{"type": "note", "agent": "tech_planner", "message": "handoff -> logistics: rough itinerary, 3 day(s)", "ts": "2026-11-04T09:46:26"}
+{"type": "transition", "from": "planning", "to": "scheduling", "agent": "logistics", "note": "", "ts": "2026-11-04T09:46:26"}
+{"type": "note", "agent": "logistics", "message": "handoff -> auditor: 3 day(s), 860.00 EUR", "ts": "2026-11-04T09:46:32"}
+{"type": "transition", "from": "scheduling", "to": "reviewing", "agent": "auditor", "note": "", "ts": "2026-11-04T09:46:32"}
+{"type": "note", "agent": "auditor", "message": "handoff -> user: plan approved", "ts": "2026-11-04T09:46:32"}
+{"type": "transition", "from": "reviewing", "to": "completed", "agent": "auditor", "note": "plan approved", "ts": "2026-11-04T09:46:32"}

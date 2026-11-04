@@ -1,12 +1,17 @@
 from openai import OpenAI
 from pydantic import BaseModel, ValidationError
 from schemas import RoughItinerary, ExpeditionPlan, AuditResult
+from state_machine import TaskRecord, Status, VALID_TRANSITIONS
+from handoff import handoff
+from soul_loader import build_system_prompt
+from skills import run_skill
 import csv
 import os
 import time
 from datetime import datetime
 
 RESULTS_FILE = "results.csv"
+LOG_DIR = "logs"
 CSV_HEADER = ["timestamp", "model", "inject_mode", "iterations",
               "status", "wall_clock_s", "schema_errors"]
 
@@ -55,6 +60,7 @@ def call_structured_llm(
 
 # ==========================================
 # AGENT 1: Lead Route & Tech Planner
+# (persona and rules live in agents/tech_planner/SOUL.md)
 # ==========================================
 def agent_tech_planner(
     user_request: str,
@@ -62,10 +68,7 @@ def agent_tech_planner(
     critique_feedback: list[str] = None,
 ) -> RoughItinerary:
     print("  [Agent 1: Tech Planner] Designing high-level technical itinerary...")
-    system_prompt = (
-        "You are the Lead Technical Route Planner for engineering expeditions. "
-        "Select high-impact robotics labs and hardware hubs for each day of the trip."
-    )
+    system_prompt = build_system_prompt("tech_planner")
     user_prompt = f"User Request: {user_request}\n"
 
     if previous_plan and critique_feedback:
@@ -79,6 +82,7 @@ def agent_tech_planner(
 
 # ==========================================
 # AGENT 2: Logistics & Budget Specialist
+# (persona and rules live in agents/logistics/SOUL.md)
 # ==========================================
 def agent_logistics_specialist(
     rough_plan: RoughItinerary,
@@ -87,10 +91,9 @@ def agent_logistics_specialist(
     critique_feedback: list[str] = None,
 ) -> ExpeditionPlan:
     print("  [Agent 2: Logistics Specialist] Enforcing time slots, transit, and EUR costs...")
-    system_prompt = (
-        "You are the Logistics & Budget Specialist. "
-        "Expand the rough itinerary into a detailed daily schedule with start_time, end_time, "
-        f"transit_mode, and cost_eur. Keep total costs strictly under {budget_cap} EUR."
+    system_prompt = build_system_prompt(
+        "logistics",
+        extra=f"Keep total costs strictly under {budget_cap} EUR.",
     )
     user_prompt = f"Rough Outline to Follow:\n{rough_plan.model_dump_json(indent=2)}\n"
 
@@ -105,24 +108,35 @@ def agent_logistics_specialist(
 
 # ==========================================
 # AGENT 3: Chief Auditor Agent (Router + Gatekeeper)
+# (persona and rules live in agents/auditor/SOUL.md)
+# The hard facts come from deterministic skills, not from the LLM's arithmetic.
 # ==========================================
 def agent_auditor(plan: ExpeditionPlan) -> AuditResult:
     print("  [Agent 3: Auditor Agent] Evaluating feasibility and routing feedback...")
-    actual_sum = sum(act.cost_eur for day in plan.days for act in day.activities)
+
+    # --- Skill: budget_check ---
+    all_costs = [act.cost_eur for day in plan.days for act in day.activities]
+    budget = run_skill("budget_check", costs=all_costs, cap=MAX_BUDGET_EUR)["result"]
+    actual_sum = budget["total"]
+
+    # --- Skill: schedule_check (per day) ---
+    schedule_issues = []
+    for day in plan.days:
+        res = run_skill("schedule_check", activities=[a.model_dump() for a in day.activities])
+        if not res["ok"]:
+            schedule_issues.append(f"Day {day.day}: could not check times ({res['error']}). Use 24-hour HH:MM.")
+        elif not res["result"]["ok"]:
+            schedule_issues.extend(f"Day {day.day}: {issue}" for issue in res["result"]["issues"])
+
     plan_text = plan.model_dump_json().lower()
     missing_hubs = [h for h in REQUIRED_HUBS if h.lower() not in plan_text]
 
-    system_prompt = (
-        "You are the Chief Expedition Auditor Agent. "
-        "Review the expedition plan and telemetry facts.\n"
-        "- If mandatory hubs are missing, set passed=False and failed_agent='tech_planner'.\n"
-        "- If all hubs are present but budget or schedule fails, set passed=False and failed_agent='logistics'.\n"
-        "- If everything is satisfied, set passed=True and failed_agent='none'."
-    )
+    system_prompt = build_system_prompt("auditor")
     user_prompt = (
         f"Max Allowed Budget: {MAX_BUDGET_EUR} EUR\n"
         f"Actual Summed Cost: {actual_sum:.2f} EUR\n"
-        f"Currently Missing Hubs: {missing_hubs}\n\n"
+        f"Currently Missing Hubs: {missing_hubs}\n"
+        f"Schedule Problems: {schedule_issues or 'none'}\n\n"
         f"Full Plan:\n{plan.model_dump_json(indent=2)}"
     )
     audit = call_structured_llm(system_prompt, user_prompt, AuditResult, temperature=0.0)
@@ -134,12 +148,14 @@ def agent_auditor(plan: ExpeditionPlan) -> AuditResult:
         for h in missing_hubs:
             if not any(h.lower() in note.lower() for note in audit.critique_notes):
                 audit.critique_notes.append(f"Missing mandatory hub: {h}")
-    elif actual_sum > MAX_BUDGET_EUR:
+    elif not budget["within_budget"] or schedule_issues:
         audit.passed = False
         audit.failed_agent = "logistics"
-        audit.critique_notes.append(
-            f"Budget exceeded: {actual_sum:.2f} EUR > {MAX_BUDGET_EUR} EUR. Reduce activity or transit costs."
-        )
+        if not budget["within_budget"]:
+            audit.critique_notes.append(
+                f"Budget exceeded: {actual_sum:.2f} EUR > {MAX_BUDGET_EUR} EUR. Reduce activity or transit costs."
+            )
+        audit.critique_notes.extend(schedule_issues)
 
     return audit
 
@@ -185,14 +201,30 @@ def apply_fault_injection(
     return detailed_plan
 
 
+def _move(record: TaskRecord, status: Status, agent: str, note: str = "") -> None:
+    """Transition unless the task is already in that state (e.g. after a retry)."""
+    if record.status != status:
+        record.transition(status, agent, note)
+
+
+def _fail(record: TaskRecord, note: str) -> None:
+    """Mark the task FAILED if its current state allows it."""
+    if Status.FAILED in VALID_TRANSITIONS[record.status]:
+        record.transition(Status.FAILED, "pipeline", note)
+
+
 def run_swarm_loop(request: str, max_iterations: int = 6, inject_mode: str = None):
     start_time = time.time()
     schema_errors = 0
     iterations_used = 0
 
+    task_id = f"{datetime.now():%Y%m%d_%H%M%S}_{inject_mode or 'none'}"
+    record = TaskRecord(task_id, request, log_dir=LOG_DIR)
+
     print("=" * 65)
     print(f"[MISSION START] Request:\n{request}")
     print(f"[CONFIG] model={MODEL_NAME} | inject_mode={inject_mode} | max_iter={max_iterations}")
+    print(f"[AUDIT LOG] {record.log_path}")
     print("=" * 65)
 
     critique_feedback = []
@@ -200,6 +232,7 @@ def run_swarm_loop(request: str, max_iterations: int = 6, inject_mode: str = Non
     detailed_plan = None
     target_agent = "tech_planner"
     logistics_retries = 0
+    retrying = False  # True right after a schema error: same agent runs again, no new handoff
 
     try:
         for iteration in range(1, max_iterations + 1):
@@ -207,11 +240,24 @@ def run_swarm_loop(request: str, max_iterations: int = 6, inject_mode: str = Non
             print(f"\n>>> --- [Iteration {iteration}] Routing to: {target_agent.upper()} --- <<<")
 
             try:
-                if target_agent == "tech_planner" or rough_plan is None:
+                run_planner = target_agent == "tech_planner" or rough_plan is None
+
+                if not retrying:
+                    src = "user" if iteration == 1 else "auditor"
+                    summary = ("new expedition request" if iteration == 1
+                               else f"rejected with {len(critique_feedback)} note(s)")
+                    handoff(record, src, "tech_planner" if run_planner else "logistics", summary)
+
+                if run_planner:
+                    _move(record, Status.PLANNING, "tech_planner")
                     rough_plan = agent_tech_planner(request, rough_plan, critique_feedback)
+                    handoff(record, "tech_planner", "logistics",
+                            f"rough itinerary, {len(rough_plan.days)} day(s)")
+                    _move(record, Status.SCHEDULING, "logistics")
                     detailed_plan = agent_logistics_specialist(rough_plan, MAX_BUDGET_EUR)
                     logistics_retries = 0
                 else:
+                    _move(record, Status.SCHEDULING, "logistics")
                     print(f"  [Router] Skipping Agent 1 -> Direct fix in Agent 2 (Attempt {logistics_retries})...")
                     detailed_plan = agent_logistics_specialist(
                         rough_plan, MAX_BUDGET_EUR, detailed_plan, critique_feedback
@@ -222,14 +268,21 @@ def run_swarm_loop(request: str, max_iterations: int = 6, inject_mode: str = Non
                 total_cost = sum(act.cost_eur for day in detailed_plan.days for act in day.activities)
                 print(f"  [Pipeline Output] Generated {len(detailed_plan.days)} days | Summed Cost: {total_cost:.2f} EUR")
 
+                handoff(record, "logistics", "auditor",
+                        f"{len(detailed_plan.days)} day(s), {total_cost:.2f} EUR")
+                _move(record, Status.REVIEWING, "auditor")
                 audit = agent_auditor(detailed_plan)
+                retrying = False
 
             except ValidationError as e:
                 schema_errors += 1
+                retrying = True
                 print(f"  [Schema Error #{schema_errors}] Parsing failed on iteration {iteration}: {e}")
+                record.note("pipeline", f"schema error #{schema_errors} on iteration {iteration}")
                 critique_feedback = [f"Schema error: {str(e)}"]
                 if schema_errors >= 3:
                     print("  [ABORTED] Too many schema errors - model is not producing valid output.")
+                    _fail(record, "too many schema errors")
                     log_run(inject_mode, iterations_used, "SCHEMA_ABORT",
                             time.time() - start_time, schema_errors)
                     return None
@@ -237,7 +290,10 @@ def run_swarm_loop(request: str, max_iterations: int = 6, inject_mode: str = Non
 
             if audit.passed:
                 elapsed = time.time() - start_time
+                handoff(record, "auditor", "user", "plan approved")
+                record.transition(Status.COMPLETED, "auditor", "plan approved")
                 print(f"\n[MISSION SUCCESS] Plan APPROVED on Iteration {iteration}! ({elapsed:.1f}s)")
+                print(f"[STATE PATH] {' -> '.join(record.path_taken())}")
                 print(detailed_plan.model_dump_json(indent=2))
                 log_run(inject_mode, iterations_used, "SUCCESS", elapsed, schema_errors)
                 return detailed_plan
@@ -245,6 +301,7 @@ def run_swarm_loop(request: str, max_iterations: int = 6, inject_mode: str = Non
                 print(f"\n[REJECTED] Blame assigned to: [{audit.failed_agent.upper()}]")
                 for note in audit.critique_notes:
                     print(f"   * {note}")
+                record.note("auditor", f"rejected, blame={audit.failed_agent}: " + " | ".join(audit.critique_notes))
 
                 critique_feedback = audit.critique_notes
                 target_agent = audit.failed_agent
@@ -254,6 +311,7 @@ def run_swarm_loop(request: str, max_iterations: int = 6, inject_mode: str = Non
                     if logistics_retries >= 2:
                         print("  [ESCALATION] Agent 2 saturated! Escalating fault back to Agent 1...")
                         target_agent = "tech_planner"
+                        record.note("pipeline", "escalation: logistics saturated, back to tech_planner")
                         critique_feedback.append(
                             "ESCALATION: Logistics could not fit your hubs within budget/time constraints. "
                             "Simplify or redistribute target_hubs across days."
@@ -261,6 +319,8 @@ def run_swarm_loop(request: str, max_iterations: int = 6, inject_mode: str = Non
 
         elapsed = time.time() - start_time
         print(f"\n[ABORTED] Could not converge within {max_iterations} iterations. ({elapsed:.1f}s)")
+        print(f"[STATE PATH] {' -> '.join(record.path_taken())}")
+        _fail(record, "max iterations reached")
         log_run(inject_mode, iterations_used, "ABORTED_MAX_ITER", elapsed, schema_errors)
         return None
 
@@ -268,6 +328,7 @@ def run_swarm_loop(request: str, max_iterations: int = 6, inject_mode: str = Non
         # Catch-all: network errors, Ollama disconnects, index errors in fault injection, etc.
         elapsed = time.time() - start_time
         print(f"\n[CRASHED] {type(e).__name__}: {e} ({elapsed:.1f}s)")
+        _fail(record, f"crash: {type(e).__name__}: {e}")
         log_run(inject_mode, iterations_used, f"CRASH_{type(e).__name__}", elapsed, schema_errors)
         return None
 

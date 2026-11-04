@@ -1,0 +1,15 @@
+{"type": "note", "agent": "user", "message": "handoff -> tech_planner: new expedition request", "ts": "2026-11-04T09:46:04"}
+{"type": "transition", "from": "pending", "to": "planning", "agent": "tech_planner", "note": "", "ts": "2026-11-04T09:46:04"}
+{"type": "note", "agent": "tech_planner", "message": "handoff -> logistics: rough itinerary, 3 day(s)", "ts": "2026-11-04T09:46:06"}
+{"type": "transition", "from": "planning", "to": "scheduling", "agent": "logistics", "note": "", "ts": "2026-11-04T09:46:06"}
+{"type": "note", "agent": "logistics", "message": "handoff -> auditor: 3 day(s), 450.00 EUR", "ts": "2026-11-04T09:46:10"}
+{"type": "transition", "from": "scheduling", "to": "reviewing", "agent": "auditor", "note": "", "ts": "2026-11-04T09:46:10"}
+{"type": "note", "agent": "auditor", "message": "rejected, blame=tech_planner: All hubs present and budget satisfied. | Missing mandatory hub: DJI | Missing mandatory hub: HAX | Missing mandatory hub: Huaqiangbei", "ts": "2026-11-04T09:46:10"}
+{"type": "note", "agent": "auditor", "message": "handoff -> tech_planner: rejected with 4 note(s)", "ts": "2026-11-04T09:46:10"}
+{"type": "transition", "from": "reviewing", "to": "planning", "agent": "tech_planner", "note": "", "ts": "2026-11-04T09:46:10"}
+{"type": "note", "agent": "tech_planner", "message": "handoff -> logistics: rough itinerary, 3 day(s)", "ts": "2026-11-04T09:46:13"}
+{"type": "transition", "from": "planning", "to": "scheduling", "agent": "logistics", "note": "", "ts": "2026-11-04T09:46:13"}
+{"type": "note", "agent": "logistics", "message": "handoff -> auditor: 3 day(s), 300.00 EUR", "ts": "2026-11-04T09:46:17"}
+{"type": "transition", "from": "scheduling", "to": "reviewing", "agent": "auditor", "note": "", "ts": "2026-11-04T09:46:17"}
+{"type": "note", "agent": "auditor", "message": "handoff -> user: plan approved", "ts": "2026-11-04T09:46:18"}
+{"type": "transition", "from": "reviewing", "to": "completed", "agent": "auditor", "note": "plan approved", "ts": "2026-11-04T09:46:18"}

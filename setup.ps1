@@ -153,7 +153,9 @@ if ($LASTEXITCODE -ne 0) { Fail "Could not pull qwen2.5:7b (disk quota or networ
 # ---------------------------------------------------------------
 # 7. Make sure the project files are present
 # ---------------------------------------------------------------
-foreach ($f in @("run_loop.py", "schemas.py")) {
+foreach ($f in @("run_loop.py", "schemas.py", "state_machine.py", "handoff.py", "soul_loader.py",
+                 "skills\__init__.py", "skills\builtin.py",
+                 "agents\tech_planner\SOUL.md", "agents\logistics\SOUL.md", "agents\auditor\SOUL.md")) {
     if (!(Test-Path (Join-Path $PSScriptRoot $f))) { Fail "$f not found next to setup.ps1." }
 }
 
