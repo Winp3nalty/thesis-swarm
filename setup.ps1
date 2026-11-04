@@ -3,6 +3,15 @@
 
 # setup.ps1 - Zero-Hang Restorer for Marsio Workstation
 # Installs everything per-user (no admin rights needed): Python, venv + packages, Ollama, model.
+# Usage:
+#   .\setup.ps1                                          -> sets up, then runs run_loop.py (the swarm)
+#   .\setup.ps1 -Script test_workers.py                  -> sets up, then runs the Week 3 worker test
+#   .\setup.ps1 -Script test_workers.py -ScriptArgs "--limit 3"
+param(
+    [string]$Script = "run_loop.py",
+    [string]$ScriptArgs = ""
+)
+
 $ProgressPreference = 'SilentlyContinue'
 
 # Always work from the folder this script lives in (run_loop.py and schemas.py are here)
@@ -172,9 +181,11 @@ if ($LASTEXITCODE -ne 0) { Fail "Could not pull $model (disk quota or network?).
 # ---------------------------------------------------------------
 # 7. Make sure the project files are present
 # ---------------------------------------------------------------
-foreach ($f in @("run_loop.py", "schemas.py", "state_machine.py", "handoff.py", "soul_loader.py",
+foreach ($f in @($Script, "run_loop.py", "schemas.py", "state_machine.py", "handoff.py", "soul_loader.py",
+                 "worker_schemas.py", "workers.py", "output_writer.py", "tests\w3_cases.json",
                  "skills\__init__.py", "skills\builtin.py",
-                 "agents\tech_planner\SOUL.md", "agents\logistics\SOUL.md", "agents\auditor\SOUL.md")) {
+                 "agents\tech_planner\SOUL.md", "agents\logistics\SOUL.md", "agents\auditor\SOUL.md",
+                 "agents\transit\SOUL.md", "agents\outreach\SOUL.md")) {
     if (!(Test-Path (Join-Path $PSScriptRoot $f))) { Fail "$f not found next to setup.ps1." }
 }
 
@@ -182,5 +193,7 @@ Write-Host "=========================================" -ForegroundColor Cyan
 Write-Host "  Environment Ready! Launching Swarm...  " -ForegroundColor Green
 Write-Host "=========================================" -ForegroundColor Cyan
 
-# Run the script directly using the venv Python executable
-& $venvPython run_loop.py
+# Run the chosen script directly using the venv Python executable
+$extra = @()
+if ($ScriptArgs) { $extra = $ScriptArgs -split '\s+' | Where-Object { $_ } }
+& $venvPython $Script @extra

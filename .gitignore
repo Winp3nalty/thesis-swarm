@@ -5,3 +5,4 @@ __pycache__/
 ollama_models/
 .vs/
 /thesis_week2
+logs/

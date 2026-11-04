@@ -361,10 +361,29 @@ def _fail(record: TaskRecord, note: str) -> None:
         record.transition(Status.FAILED, "pipeline", note)
 
 
+SAVE_OUTPUTS = os.environ.get("SWARM_SAVE_OUTPUTS", "1") != "0"
+
+
+def _save_outputs(request, mode, status, iterations, plan, record):
+    """Write plan.md/plan.json/history.md under outputs/<run>/. Never lets saving break a run."""
+    if not SAVE_OUTPUTS:
+        return
+    try:
+        import output_writer
+        d = output_writer.write_swarm_run(request, mode or "none", MODEL_NAME, _gpu_name(), status,
+                                          iterations, plan, record.log_path)
+        print(f"[OUTPUT] Readable results saved: {d / 'index.md'}")
+    except Exception as e:
+        print(f"[OUTPUT] Could not save readable results: {type(e).__name__}: {e}")
+
+
 def run_swarm_loop(request: str, max_iterations: int = 6, inject_mode: str = None):
     start_time = time.time()
     schema_errors = 0
     iterations_used = 0
+    iterations_log = []
+    final_status = "CRASH"
+    final_plan = None
 
     task_id = f"{datetime.now():%Y%m%d_%H%M%S}_{inject_mode or 'none'}"
     record = TaskRecord(task_id, request, log_dir=LOG_DIR)
@@ -422,16 +441,22 @@ def run_swarm_loop(request: str, max_iterations: int = 6, inject_mode: str = Non
                 _move(record, Status.REVIEWING, "auditor")
                 audit = agent_auditor(detailed_plan)
                 retrying = False
+                iterations_log.append({
+                    "iteration": iteration, "planner_ran": run_planner, "total_cost": total_cost,
+                    "rough_plan": rough_plan.model_dump(), "detailed_plan": detailed_plan.model_dump(),
+                    "audit": audit.model_dump()})
 
             except (ValidationError, StructuredOutputError) as e:
                 schema_errors += 1
                 retrying = True
                 print(f"  [Schema Error #{schema_errors}] Parsing failed on iteration {iteration}: {e}")
                 record.note("pipeline", f"schema error #{schema_errors} on iteration {iteration}")
+                iterations_log.append({"iteration": iteration, "error": f"{type(e).__name__}: {str(e)[:300]}"})
                 critique_feedback = [f"Schema error: {str(e)}"]
                 if schema_errors >= 3:
                     print("  [ABORTED] Too many schema errors - model is not producing valid output.")
                     _fail(record, "too many schema errors")
+                    final_status = "SCHEMA_ABORT"
                     log_run(inject_mode, iterations_used, "SCHEMA_ABORT",
                             time.time() - start_time, schema_errors)
                     return None
@@ -445,6 +470,7 @@ def run_swarm_loop(request: str, max_iterations: int = 6, inject_mode: str = Non
                 print(f"[STATE PATH] {' -> '.join(record.path_taken())}")
                 print(detailed_plan.model_dump_json(indent=2))
                 log_run(inject_mode, iterations_used, "SUCCESS", elapsed, schema_errors)
+                final_status, final_plan = "SUCCESS", detailed_plan.model_dump()
                 return detailed_plan
             else:
                 print(f"\n[REJECTED] Blame assigned to: [{audit.failed_agent.upper()}]")
@@ -470,6 +496,7 @@ def run_swarm_loop(request: str, max_iterations: int = 6, inject_mode: str = Non
         print(f"\n[ABORTED] Could not converge within {max_iterations} iterations. ({elapsed:.1f}s)")
         print(f"[STATE PATH] {' -> '.join(record.path_taken())}")
         _fail(record, "max iterations reached")
+        final_status = "ABORTED_MAX_ITER"
         log_run(inject_mode, iterations_used, "ABORTED_MAX_ITER", elapsed, schema_errors)
         return None
 
@@ -478,11 +505,13 @@ def run_swarm_loop(request: str, max_iterations: int = 6, inject_mode: str = Non
         elapsed = time.time() - start_time
         print(f"\n[CRASHED] {type(e).__name__}: {e} ({elapsed:.1f}s)")
         _fail(record, f"crash: {type(e).__name__}: {e}")
+        final_status = f"CRASH_{type(e).__name__}"
         log_run(inject_mode, iterations_used, f"CRASH_{type(e).__name__}", elapsed, schema_errors)
         return None
 
     finally:
         _report_llm_stats(record)
+        _save_outputs(request, inject_mode, final_status, iterations_log, final_plan, record)
 
 
 if __name__ == "__main__":
