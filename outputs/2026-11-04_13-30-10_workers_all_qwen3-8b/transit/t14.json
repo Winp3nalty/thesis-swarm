@@ -1,0 +1,57 @@
+{
+  "case": {
+    "id": "t14",
+    "city": "Silicon Valley",
+    "stops": [
+      "Stanford University",
+      "Mountain View Caltrain Station",
+      "Computer History Museum"
+    ]
+  },
+  "final_ok": true,
+  "error": "",
+  "result": {
+    "legs": [
+      {
+        "from_stop": "Stanford University",
+        "to_stop": "Mountain View Caltrain Station",
+        "mode": "Caltrain",
+        "minutes": 15,
+        "cost_eur": 8.5
+      },
+      {
+        "from_stop": "Mountain View Caltrain Station",
+        "to_stop": "Computer History Museum",
+        "mode": "bus",
+        "minutes": 20,
+        "cost_eur": 1.2
+      }
+    ]
+  },
+  "attempts": [
+    {
+      "attempt": 1,
+      "status": "ok",
+      "problems": [],
+      "rejected_text": null,
+      "response": {
+        "legs": [
+          {
+            "from_stop": "Stanford University",
+            "to_stop": "Mountain View Caltrain Station",
+            "mode": "Caltrain",
+            "minutes": 15,
+            "cost_eur": 8.5
+          },
+          {
+            "from_stop": "Mountain View Caltrain Station",
+            "to_stop": "Computer History Museum",
+            "mode": "bus",
+            "minutes": 20,
+            "cost_eur": 1.2
+          }
+        ]
+      }
+    }
+  ]
+}

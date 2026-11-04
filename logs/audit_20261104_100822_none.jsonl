@@ -1,2 +1,0 @@
-{"type": "note", "agent": "user", "message": "handoff -> tech_planner: new expedition request", "ts": "2026-11-04T10:08:22"}
-{"type": "transition", "from": "pending", "to": "planning", "agent": "tech_planner", "note": "", "ts": "2026-11-04T10:08:22"}

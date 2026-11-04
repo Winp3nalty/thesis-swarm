@@ -1,0 +1,34 @@
+{
+  "case": {
+    "id": "o04",
+    "name": "Prof. Henrik Lindqvist",
+    "institution": "Stanford University",
+    "city": "Silicon Valley",
+    "topics": [
+      "embodied AI foundation models",
+      "vision-language-action policies"
+    ]
+  },
+  "final_ok": true,
+  "error": "",
+  "result": {
+    "subject": "Request for a 30-Minute Lab Tour During Student Expedition",
+    "greeting": "Dear Prof. Henrik Lindqvist,",
+    "body": "Your recent work on embodied AI foundation models at Stanford University has significantly advanced our understanding of intelligent systems. A small group of engineering students from the University of Tokyo is visiting Silicon Valley to explore cutting-edge research and innovation. We are reaching out to learn more about your work and its implications for future technologies.\n\nWe are particularly interested in your research on vision-language-action policies and how they bridge the gap between perception and action in AI systems. Our group hopes to gain insights into the challenges and opportunities in developing such models for real-world applications.\n\nWe would be honored if you could offer a 30-minute lab tour during our visit. We are flexible and can adapt to your schedule. Thank you for considering our request.",
+    "sign_off": "Sincerely"
+  },
+  "attempts": [
+    {
+      "attempt": 1,
+      "status": "ok",
+      "problems": [],
+      "rejected_text": null,
+      "response": {
+        "subject": "Request for a 30-Minute Lab Tour During Student Expedition",
+        "greeting": "Dear Prof. Henrik Lindqvist,",
+        "body": "Your recent work on embodied AI foundation models at Stanford University has significantly advanced our understanding of intelligent systems. A small group of engineering students from the University of Tokyo is visiting Silicon Valley to explore cutting-edge research and innovation. We are reaching out to learn more about your work and its implications for future technologies.\n\nWe are particularly interested in your research on vision-language-action policies and how they bridge the gap between perception and action in AI systems. Our group hopes to gain insights into the challenges and opportunities in developing such models for real-world applications.\n\nWe would be honored if you could offer a 30-minute lab tour during our visit. We are flexible and can adapt to your schedule. Thank you for considering our request.",
+        "sign_off": "Sincerely"
+      }
+    }
+  ]
+}

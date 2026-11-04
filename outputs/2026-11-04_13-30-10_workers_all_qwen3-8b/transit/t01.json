@@ -1,0 +1,42 @@
+{
+  "case": {
+    "id": "t01",
+    "city": "Shenzhen",
+    "stops": [
+      "Shenzhen North Railway Station",
+      "DJI Sky City"
+    ]
+  },
+  "final_ok": true,
+  "error": "",
+  "result": {
+    "legs": [
+      {
+        "from_stop": "Shenzhen North Railway Station",
+        "to_stop": "DJI Sky City",
+        "mode": "metro",
+        "minutes": 45,
+        "cost_eur": 5.0
+      }
+    ]
+  },
+  "attempts": [
+    {
+      "attempt": 1,
+      "status": "ok",
+      "problems": [],
+      "rejected_text": null,
+      "response": {
+        "legs": [
+          {
+            "from_stop": "Shenzhen North Railway Station",
+            "to_stop": "DJI Sky City",
+            "mode": "metro",
+            "minutes": 45,
+            "cost_eur": 5.0
+          }
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,37 @@
+{
+  "case": {
+    "id": "o18",
+    "name": "Prof. Hu Ruoxi",
+    "institution": "Southern University of Science and Technology",
+    "aliases": [
+      "SUSTech"
+    ],
+    "city": "Shenzhen",
+    "topics": [
+      "legged-wheeled hybrid robots",
+      "trajectory optimization"
+    ]
+  },
+  "final_ok": true,
+  "error": "",
+  "result": {
+    "subject": "Request for a Lab Tour During Student Expedition",
+    "greeting": "Dear Prof. Hu Ruoxi,",
+    "body": "Your work on legged-wheeled hybrid robots at Southern University of Science and Technology is highly regarded in the field of robotics. A small group of engineering students from our university is visiting Shenzhen to explore cutting-edge research and gain insights into advanced robotics. We are writing to request a 30-minute lab tour to better understand your work on trajectory optimization and its practical applications. We are particularly interested in how your research addresses dynamic environments and real-time adaptability, which aligns with our project on autonomous navigation systems. We would be honored to visit your lab and learn more about your innovative approaches. We are happy to adjust our schedule to accommodate your availability and appreciate any guidance you may offer. Thank you for considering our request.",
+    "sign_off": "Sincerely"
+  },
+  "attempts": [
+    {
+      "attempt": 1,
+      "status": "ok",
+      "problems": [],
+      "rejected_text": null,
+      "response": {
+        "subject": "Request for a Lab Tour During Student Expedition",
+        "greeting": "Dear Prof. Hu Ruoxi,",
+        "body": "Your work on legged-wheeled hybrid robots at Southern University of Science and Technology is highly regarded in the field of robotics. A small group of engineering students from our university is visiting Shenzhen to explore cutting-edge research and gain insights into advanced robotics. We are writing to request a 30-minute lab tour to better understand your work on trajectory optimization and its practical applications. We are particularly interested in how your research addresses dynamic environments and real-time adaptability, which aligns with our project on autonomous navigation systems. We would be honored to visit your lab and learn more about your innovative approaches. We are happy to adjust our schedule to accommodate your availability and appreciate any guidance you may offer. Thank you for considering our request.",
+        "sign_off": "Sincerely"
+      }
+    }
+  ]
+}

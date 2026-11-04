@@ -1,0 +1,97 @@
+{
+  "destination": "Shenzhen",
+  "duration_days": 3,
+  "total_budget_eur": 1200.0,
+  "days": [
+    {
+      "day": 1,
+      "focus_topic": "Drone Technology",
+      "activities": [
+        {
+          "start_time": "09:00",
+          "end_time": "12:00",
+          "location": "DJI",
+          "activity_description": "Explore drone manufacturing and R&D",
+          "transit_mode": "private car",
+          "cost_eur": 100.0
+        },
+        {
+          "start_time": "13:30",
+          "end_time": "15:30",
+          "location": "HAX",
+          "activity_description": "Visit startup incubator and innovation hub",
+          "transit_mode": "private car",
+          "cost_eur": 150.0
+        },
+        {
+          "start_time": "16:00",
+          "end_time": "18:00",
+          "location": "Huaqiangbei",
+          "activity_description": "Tour electronics market and component suppliers",
+          "transit_mode": "private car",
+          "cost_eur": 150.0
+        }
+      ]
+    },
+    {
+      "day": 2,
+      "focus_topic": "Startup Ecosystem",
+      "activities": [
+        {
+          "start_time": "09:00",
+          "end_time": "12:00",
+          "location": "HAX",
+          "activity_description": "Visit startup incubator and innovation hub",
+          "transit_mode": "private car",
+          "cost_eur": 100.0
+        },
+        {
+          "start_time": "13:30",
+          "end_time": "15:30",
+          "location": "DJI",
+          "activity_description": "Explore drone manufacturing and R&D",
+          "transit_mode": "private car",
+          "cost_eur": 150.0
+        },
+        {
+          "start_time": "16:00",
+          "end_time": "18:00",
+          "location": "Huaqiangbei",
+          "activity_description": "Tour electronics market and component suppliers",
+          "transit_mode": "private car",
+          "cost_eur": 150.0
+        }
+      ]
+    },
+    {
+      "day": 3,
+      "focus_topic": "Hardware Market",
+      "activities": [
+        {
+          "start_time": "09:00",
+          "end_time": "12:00",
+          "location": "Huaqiangbei",
+          "activity_description": "Tour electronics market and component suppliers",
+          "transit_mode": "private car",
+          "cost_eur": 100.0
+        },
+        {
+          "start_time": "13:30",
+          "end_time": "15:30",
+          "location": "DJI",
+          "activity_description": "Explore drone manufacturing and R&D",
+          "transit_mode": "private car",
+          "cost_eur": 150.0
+        },
+        {
+          "start_time": "16:00",
+          "end_time": "18:00",
+          "location": "HAX",
+          "activity_description": "Visit startup incubator and innovation hub",
+          "transit_mode": "private car",
+          "cost_eur": 150.0
+        }
+      ]
+    }
+  ]
+}

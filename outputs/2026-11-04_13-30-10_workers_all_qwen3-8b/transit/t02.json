@@ -1,0 +1,57 @@
+{
+  "case": {
+    "id": "t02",
+    "city": "Shenzhen",
+    "stops": [
+      "Shenzhen Bao'an International Airport",
+      "Futian Station",
+      "Huaqiangbei Electronics Market"
+    ]
+  },
+  "final_ok": true,
+  "error": "",
+  "result": {
+    "legs": [
+      {
+        "from_stop": "Shenzhen Bao'an International Airport",
+        "to_stop": "Futian Station",
+        "mode": "metro",
+        "minutes": 45,
+        "cost_eur": 10.0
+      },
+      {
+        "from_stop": "Futian Station",
+        "to_stop": "Huaqiangbei Electronics Market",
+        "mode": "metro",
+        "minutes": 30,
+        "cost_eur": 8.0
+      }
+    ]
+  },
+  "attempts": [
+    {
+      "attempt": 1,
+      "status": "ok",
+      "problems": [],
+      "rejected_text": null,
+      "response": {
+        "legs": [
+          {
+            "from_stop": "Shenzhen Bao'an International Airport",
+            "to_stop": "Futian Station",
+            "mode": "metro",
+            "minutes": 45,
+            "cost_eur": 10.0
+          },
+          {
+            "from_stop": "Futian Station",
+            "to_stop": "Huaqiangbei Electronics Market",
+            "mode": "metro",
+            "minutes": 30,
+            "cost_eur": 8.0
+          }
+        ]
+      }
+    }
+  ]
+}

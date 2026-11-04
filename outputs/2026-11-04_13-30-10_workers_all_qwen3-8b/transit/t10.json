@@ -1,0 +1,72 @@
+{
+  "case": {
+    "id": "t10",
+    "city": "Shanghai",
+    "stops": [
+      "The Bund",
+      "People's Square Station",
+      "Fudan University Handan Campus",
+      "Zhangjiang Science City"
+    ]
+  },
+  "final_ok": true,
+  "error": "",
+  "result": {
+    "legs": [
+      {
+        "from_stop": "The Bund",
+        "to_stop": "People's Square Station",
+        "mode": "metro",
+        "minutes": 25,
+        "cost_eur": 3.0
+      },
+      {
+        "from_stop": "People's Square Station",
+        "to_stop": "Fudan University Handan Campus",
+        "mode": "metro",
+        "minutes": 35,
+        "cost_eur": 3.0
+      },
+      {
+        "from_stop": "Fudan University Handan Campus",
+        "to_stop": "Zhangjiang Science City",
+        "mode": "metro",
+        "minutes": 50,
+        "cost_eur": 4.0
+      }
+    ]
+  },
+  "attempts": [
+    {
+      "attempt": 1,
+      "status": "ok",
+      "problems": [],
+      "rejected_text": null,
+      "response": {
+        "legs": [
+          {
+            "from_stop": "The Bund",
+            "to_stop": "People's Square Station",
+            "mode": "metro",
+            "minutes": 25,
+            "cost_eur": 3.0
+          },
+          {
+            "from_stop": "People's Square Station",
+            "to_stop": "Fudan University Handan Campus",
+            "mode": "metro",
+            "minutes": 35,
+            "cost_eur": 3.0
+          },
+          {
+            "from_stop": "Fudan University Handan Campus",
+            "to_stop": "Zhangjiang Science City",
+            "mode": "metro",
+            "minutes": 50,
+            "cost_eur": 4.0
+          }
+        ]
+      }
+    }
+  ]
+}

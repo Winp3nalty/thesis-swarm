@@ -1,0 +1,37 @@
+{
+  "case": {
+    "id": "o03",
+    "name": "Prof. Zhou Mingyu",
+    "institution": "Southern University of Science and Technology",
+    "aliases": [
+      "SUSTech"
+    ],
+    "city": "Shenzhen",
+    "topics": [
+      "soft robotic grippers",
+      "bio-inspired actuators"
+    ]
+  },
+  "final_ok": true,
+  "error": "",
+  "result": {
+    "subject": "Request for a 30-Minute Lab Tour During Student Expedition",
+    "greeting": "Dear Prof. Zhou Mingyu,",
+    "body": "Your recent work on soft robotic grippers at Southern University of Science and Technology has significantly advanced the field of flexible robotics. A small group of engineering students from our university is visiting Shenzhen to explore cutting-edge research and gain insights into practical applications. We are writing to request a brief tour of your laboratory to better understand your work.\n\nWe are particularly interested in your research on bio-inspired actuators, as it aligns closely with our project on adaptive robotic systems. The group hopes to learn more about the design principles and material innovations that enable such advanced functionality. Your expertise would greatly enhance our understanding of this complex area.\n\nWe would be honored if you could accommodate a 30-minute tour during our visit. We are flexible with your schedule and can adjust our timing to suit your availability. Thank you for considering our request.",
+    "sign_off": "Sincerely"
+  },
+  "attempts": [
+    {
+      "attempt": 1,
+      "status": "ok",
+      "problems": [],
+      "rejected_text": null,
+      "response": {
+        "subject": "Request for a 30-Minute Lab Tour During Student Expedition",
+        "greeting": "Dear Prof. Zhou Mingyu,",
+        "body": "Your recent work on soft robotic grippers at Southern University of Science and Technology has significantly advanced the field of flexible robotics. A small group of engineering students from our university is visiting Shenzhen to explore cutting-edge research and gain insights into practical applications. We are writing to request a brief tour of your laboratory to better understand your work.\n\nWe are particularly interested in your research on bio-inspired actuators, as it aligns closely with our project on adaptive robotic systems. The group hopes to learn more about the design principles and material innovations that enable such advanced functionality. Your expertise would greatly enhance our understanding of this complex area.\n\nWe would be honored if you could accommodate a 30-minute tour during our visit. We are flexible with your schedule and can adjust our timing to suit your availability. Thank you for considering our request.",
+        "sign_off": "Sincerely"
+      }
+    }
+  ]
+}

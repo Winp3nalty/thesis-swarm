@@ -1,0 +1,72 @@
+{
+  "case": {
+    "id": "t15",
+    "city": "Silicon Valley",
+    "stops": [
+      "Computer History Museum",
+      "Sunnyvale Caltrain Station",
+      "Santa Clara Caltrain Station",
+      "San Jose Diridon Station"
+    ]
+  },
+  "final_ok": true,
+  "error": "",
+  "result": {
+    "legs": [
+      {
+        "from_stop": "Computer History Museum",
+        "to_stop": "Sunnyvale Caltrain Station",
+        "mode": "taxi",
+        "minutes": 25,
+        "cost_eur": 30.0
+      },
+      {
+        "from_stop": "Sunnyvale Caltrain Station",
+        "to_stop": "Santa Clara Caltrain Station",
+        "mode": "Caltrain",
+        "minutes": 15,
+        "cost_eur": 5.0
+      },
+      {
+        "from_stop": "Santa Clara Caltrain Station",
+        "to_stop": "San Jose Diridon Station",
+        "mode": "Caltrain",
+        "minutes": 20,
+        "cost_eur": 6.0
+      }
+    ]
+  },
+  "attempts": [
+    {
+      "attempt": 1,
+      "status": "ok",
+      "problems": [],
+      "rejected_text": null,
+      "response": {
+        "legs": [
+          {
+            "from_stop": "Computer History Museum",
+            "to_stop": "Sunnyvale Caltrain Station",
+            "mode": "taxi",
+            "minutes": 25,
+            "cost_eur": 30.0
+          },
+          {
+            "from_stop": "Sunnyvale Caltrain Station",
+            "to_stop": "Santa Clara Caltrain Station",
+            "mode": "Caltrain",
+            "minutes": 15,
+            "cost_eur": 5.0
+          },
+          {
+            "from_stop": "Santa Clara Caltrain Station",
+            "to_stop": "San Jose Diridon Station",
+            "mode": "Caltrain",
+            "minutes": 20,
+            "cost_eur": 6.0
+          }
+        ]
+      }
+    }
+  ]
+}

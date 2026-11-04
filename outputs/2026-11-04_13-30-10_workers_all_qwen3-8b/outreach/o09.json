@@ -1,0 +1,34 @@
+{
+  "case": {
+    "id": "o09",
+    "name": "Prof. Thomas Brandt",
+    "institution": "Santa Clara University",
+    "city": "Silicon Valley",
+    "topics": [
+      "tactile sensing",
+      "MEMS force sensors"
+    ]
+  },
+  "final_ok": true,
+  "error": "",
+  "result": {
+    "subject": "Request for Lab Tour During Silicon Valley Expedition",
+    "greeting": "Dear Prof. Thomas Brandt,",
+    "body": "Your recent work on tactile sensing and MEMS force sensors has significantly advanced the field of sensor technology. A small group of engineering students from Santa Clara University is visiting Silicon Valley to explore cutting-edge research and industry applications. We are reaching out to learn more about your work and its implications for sensor design and integration.\n\nWe are particularly interested in your research on tactile sensing and how it can be applied to improve the sensitivity and accuracy of MEMS force sensors. Our group is focused on developing compact, high-performance sensors for use in robotics and wearable technology, and we believe your insights would greatly enhance our understanding of the field.\n\nWe would be honored to arrange a 30-minute lab tour during our visit and are happy to adapt to your schedule. Your guidance would be invaluable to our learning experience, and we appreciate any time you might be able to offer.",
+    "sign_off": "Sincerely"
+  },
+  "attempts": [
+    {
+      "attempt": 1,
+      "status": "ok",
+      "problems": [],
+      "rejected_text": null,
+      "response": {
+        "subject": "Request for Lab Tour During Silicon Valley Expedition",
+        "greeting": "Dear Prof. Thomas Brandt,",
+        "body": "Your recent work on tactile sensing and MEMS force sensors has significantly advanced the field of sensor technology. A small group of engineering students from Santa Clara University is visiting Silicon Valley to explore cutting-edge research and industry applications. We are reaching out to learn more about your work and its implications for sensor design and integration.\n\nWe are particularly interested in your research on tactile sensing and how it can be applied to improve the sensitivity and accuracy of MEMS force sensors. Our group is focused on developing compact, high-performance sensors for use in robotics and wearable technology, and we believe your insights would greatly enhance our understanding of the field.\n\nWe would be honored to arrange a 30-minute lab tour during our visit and are happy to adapt to your schedule. Your guidance would be invaluable to our learning experience, and we appreciate any time you might be able to offer.",
+        "sign_off": "Sincerely"
+      }
+    }
+  ]
+}

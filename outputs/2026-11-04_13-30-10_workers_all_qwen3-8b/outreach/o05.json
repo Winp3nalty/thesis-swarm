@@ -1,0 +1,38 @@
+{
+  "case": {
+    "id": "o05",
+    "name": "Prof. Aisha Rahman",
+    "institution": "San Jose State University",
+    "aliases": [
+      "San Jose State",
+      "SJSU"
+    ],
+    "city": "Silicon Valley",
+    "topics": [
+      "human-robot interaction",
+      "assistive robotics"
+    ]
+  },
+  "final_ok": true,
+  "error": "",
+  "result": {
+    "subject": "Request for Lab Tour During Student Expedition",
+    "greeting": "Dear Prof. Aisha Rahman,",
+    "body": "Your recent work on human-robot interaction at San Jose State University has significantly influenced our understanding of assistive robotics. A small group of engineering students from San Jose State University is visiting Silicon Valley to explore cutting-edge research in robotics and human-machine collaboration. We are writing to seek your guidance on how to approach this field.\n\nWe are particularly interested in your research on assistive robotics and its potential to enhance daily living for individuals with mobility challenges. Our group hopes to learn more about the design principles and ethical considerations in developing such technologies.\n\nWe would be honored to request a 30-minute lab tour during our visit. We are happy to adapt to your schedule and are flexible with the timing. Thank you for considering our request.",
+    "sign_off": "Sincerely"
+  },
+  "attempts": [
+    {
+      "attempt": 1,
+      "status": "ok",
+      "problems": [],
+      "rejected_text": null,
+      "response": {
+        "subject": "Request for Lab Tour During Student Expedition",
+        "greeting": "Dear Prof. Aisha Rahman,",
+        "body": "Your recent work on human-robot interaction at San Jose State University has significantly influenced our understanding of assistive robotics. A small group of engineering students from San Jose State University is visiting Silicon Valley to explore cutting-edge research in robotics and human-machine collaboration. We are writing to seek your guidance on how to approach this field.\n\nWe are particularly interested in your research on assistive robotics and its potential to enhance daily living for individuals with mobility challenges. Our group hopes to learn more about the design principles and ethical considerations in developing such technologies.\n\nWe would be honored to request a 30-minute lab tour during our visit. We are happy to adapt to your schedule and are flexible with the timing. Thank you for considering our request.",
+        "sign_off": "Sincerely"
+      }
+    }
+  ]
+}
