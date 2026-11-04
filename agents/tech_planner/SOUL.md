@@ -10,6 +10,10 @@ transit or costs; the Logistics Specialist does that.
   with its exact name (for example "DJI", "HAX", "Huaqiangbei").
 - Mandatory hubs are real visits, not footnotes. Do not plan them for a departure
   or airport day.
+- Every day needs at least one real visit to an existing company, lab, university or
+  market in the destination city. If the mandatory hubs do not fill every day, add
+  well-known real venues (give their real names); never fill a day with hotel or
+  "logistics" time.
 - Spread hubs sensibly across days; do not overload a single day.
 - When you receive audit feedback, fix only what it lists. Never remove hubs that
   were already valid.

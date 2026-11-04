@@ -88,6 +88,12 @@ def render_iterations_md(iterations: list[dict]) -> str:
         lines += [f"## Iteration {n}: {verdict}", "", f"- Agents run: {agents}",
                   f"- Summed cost: {it['total_cost']:.2f} EUR"]
         lines += [f"- Auditor note: {note}" for note in audit["critique_notes"]]
+        if it.get("verification"):
+            lines += ["", "<details><summary>Online checks (OpenStreetMap)</summary>", ""]
+            for v in it["verification"]:
+                state = {True: "ok", False: "NOT FOUND", None: "unverified"}.get(v["found"], "?")
+                lines.append(f"- {v['check']}: {v['name']}: {state} ({v['source']}) {v['detail']}")
+            lines += ["", "</details>"]
         lines += ["", "<details><summary>Planner draft (hubs per day)</summary>", ""]
         for d in it["rough_plan"]["days"]:
             hubs = ", ".join(h["hub_name"] for h in d["target_hubs"]) or "none"
@@ -97,23 +103,31 @@ def render_iterations_md(iterations: list[dict]) -> str:
     return "\n".join(lines)
 
 
-def write_swarm_run(request, mode, model, gpu, status, iterations, final_plan, audit_log, root=None) -> Path:
+def write_swarm_run(request, mode, model, gpu, status, iterations, final_plan, audit_log, root=None,
+                    warnings=None) -> Path:
     d = new_run_dir("swarm", model, label=mode, root=root)
     write_text(d / "history.md", render_iterations_md(iterations))
     write_json(d / "history.json", iterations)
-    index = ["# Swarm run", "", f"- **Status:** {status}", f"- **Fault mode:** {mode}",
+    from version_info import version_info, version_line
+    write_json(d / "run.json", {"request": request, "fault_mode": mode, "model": model, "gpu": gpu,
+                                "status": status, "iterations": len(iterations), **version_info()})
+    index = ["# Swarm run", "", f"- **Version:** {version_line()}", f"- **Status:** {status}", f"- **Fault mode:** {mode}",
              f"- **Model:** {model}", f"- **GPU:** {gpu}", f"- **Iterations:** {len(iterations)}",
              f"- **Audit log (state path and handovers):** `{audit_log}`", "",
              "## Request", "", f"> {request}", "", "## Files", ""]
     if final_plan:
-        write_text(d / "plan.md", render_plan_md(final_plan, title="Approved expedition plan"))
+        plan_md = render_plan_md(final_plan, title="Approved expedition plan")
+        if warnings:
+            plan_md += "\n## Warnings (approved by the Auditor with reservations)\n\n" + "\n".join(f"- {x}" for x in warnings) + "\n"
+        write_text(d / "plan.md", plan_md)
         write_json(d / "plan.json", final_plan)
         index += ["- [plan.md](plan.md): the approved expedition plan, readable",
                   "- [plan.json](plan.json): the same plan as data"]
     else:
         index.append("- No plan was approved in this run.")
     index += ["- [history.md](history.md): every draft and the Auditor's verdict",
-              "- [history.json](history.json): the same data for scripts", ""]
+              "- [history.json](history.json): the same data for scripts",
+              "- [run.json](run.json): settings and version of this run", ""]
     write_text(d / "index.md", "\n".join(index))
     return d
 
@@ -121,11 +135,12 @@ def write_swarm_run(request, mode, model, gpu, status, iterations, final_plan, a
 # ==========================================
 # Worker agents (Transit, Outreach)
 # ==========================================
-def _status_line(info: dict, final_ok: bool) -> str:
+def _status_line(info: dict, final_ok: bool, error: str = "") -> str:
     first = ("schema valid" if info.get("first_schema_ok") else "schema INVALID") + ", " + \
             ("content rules met" if info.get("first_semantic_ok") else "content rules BROKEN")
-    return (f"**Result:** {'valid' if final_ok else 'FAILED'} after {info.get('attempts', 0)} attempt(s). "
+    line = (f"**Result:** {'valid' if final_ok else 'FAILED'} after {info.get('attempts', 0)} attempt(s). "
             f"First attempt: {first}.")
+    return line + (f"\n\n**Error:** `{_cell(error)}`" if error else "")
 
 
 def _attempts_md(info: dict) -> list[str]:
@@ -140,9 +155,9 @@ def _attempts_md(info: dict) -> list[str]:
     return lines
 
 
-def render_transit_md(case: dict, info: dict, result: dict | None, final_ok: bool) -> str:
+def render_transit_md(case: dict, info: dict, result: dict | None, final_ok: bool, error: str = "") -> str:
     lines = [f"# Transit {case['id']}: {case['city']}", "",
-             "**Stops:** " + " → ".join(case["stops"]), "", _status_line(info, final_ok), ""]
+             "**Stops:** " + " → ".join(case["stops"]), "", _status_line(info, final_ok, error), ""]
     if result:
         lines += ["## Route", "", "| # | From | To | Mode | Minutes | Cost (EUR) |", "|---|---|---|---|---|---|"]
         for i, leg in enumerate(result["legs"], 1):
@@ -153,10 +168,10 @@ def render_transit_md(case: dict, info: dict, result: dict | None, final_ok: boo
     return "\n".join(lines + _attempts_md(info))
 
 
-def render_outreach_md(case: dict, info: dict, result: dict | None, final_ok: bool) -> str:
+def render_outreach_md(case: dict, info: dict, result: dict | None, final_ok: bool, error: str = "") -> str:
     lines = [f"# Outreach {case['id']}: {case['name']}, {case['institution']}", "",
              "**Research topics:** " + "; ".join(case["topics"]), f"**Expedition city:** {case['city']}", "",
-             _status_line(info, final_ok), ""]
+             _status_line(info, final_ok, error), ""]
     if result:
         lines += ["## Final email", "", f"**Subject:** {result['subject']}", "", result["greeting"], "",
                   result["body"], "", result["sign_off"], "",
@@ -165,7 +180,9 @@ def render_outreach_md(case: dict, info: dict, result: dict | None, final_ok: bo
 
 
 def write_workers_index(run_dir: Path, model: str, gpu: str, rows: list[dict], summaries: dict) -> None:
-    lines = ["# Worker agent test run", "", f"- **Model:** {model}", f"- **GPU:** {gpu}", ""]
+    from version_info import version_line
+    lines = ["# Worker agent test run", "", f"- **Version:** {version_line()}", f"- **Model:** {model}",
+             f"- **GPU:** {gpu}", ""]
     for agent, s in summaries.items():
         n = s["n"]
         lines += [f"## {agent.capitalize()} agent", "",
@@ -177,6 +194,6 @@ def write_workers_index(run_dir: Path, model: str, gpu: str, rows: list[dict], s
         for r in (x for x in rows if x["agent"] == agent):
             first = "ok" if r["first_semantic_ok"] else ("schema invalid" if not r["first_schema_ok"] else "content rules")
             lines.append(f"| {r['case_id']} | {'valid' if r['final_ok'] else 'FAILED'} | {r['attempts']} | "
-                         f"{first} | {_cell(r['first_problems'])} | [{r['case_id']}.md]({r['link']}) |")
+                         f"{first} | {_cell(r['first_problems'] or r.get('error') or '')} | [{r['case_id']}.md]({r['link']}) |")
         lines.append("")
     write_text(Path(run_dir) / "index.md", "\n".join(lines))

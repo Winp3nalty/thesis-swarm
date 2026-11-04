@@ -1,0 +1,8 @@
+# The ONE place to choose the model. Put the Ollama model name on the first line below.
+# Temporary override without editing this file:  .\setup.ps1 -Model qwen3:14b
+#
+# qwen3:8b            5 GB   fits every GPU (12 GB and up). Tested, recommended default.
+# qwen3:14b           9 GB   wants a 16 GB GPU.
+# qwen3:30b-instruct  19 GB  wants a 24 GB GPU.
+# qwen2.5:7b          5 GB   older baseline for comparison.
+qwen3:8b

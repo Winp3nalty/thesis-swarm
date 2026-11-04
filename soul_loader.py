@@ -19,12 +19,9 @@ def load_soul(agent_id: str) -> str:
     return path.read_text(encoding="utf-8").strip()
 
 
-def build_system_prompt(agent_id: str, skill_names: list[str] | None = None, extra: str = "") -> str:
-    """SOUL.md text, plus an optional list of skills the agent may request, plus extras."""
+def build_system_prompt(agent_id: str, extra: str = "") -> str:
+    """SOUL.md text, plus optional extra instructions."""
     parts = [load_soul(agent_id)]
-    if skill_names:
-        from skills import describe_skills
-        parts.append(describe_skills(skill_names))
     if extra:
         parts.append(extra)
     return "\n\n".join(parts)

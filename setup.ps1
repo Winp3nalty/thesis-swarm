@@ -7,8 +7,10 @@
 #   .\setup.ps1                                          -> sets up, then runs run_loop.py (the swarm)
 #   .\setup.ps1 -Script test_workers.py                  -> sets up, then runs the Week 3 worker test
 #   .\setup.ps1 -Script test_workers.py -ScriptArgs "--limit 3"
+#   .\setup.ps1 -Model qwen3:14b                         -> one run with another model (default: model.txt)
 param(
     [string]$Script = "run_loop.py",
+    [string]$Model = "",
     [string]$ScriptArgs = ""
 )
 
@@ -17,11 +19,37 @@ $ProgressPreference = 'SilentlyContinue'
 # Always work from the folder this script lives in (run_loop.py and schemas.py are here)
 Set-Location $PSScriptRoot
 
-# Model used by the swarm. Override before running, e.g.  $env:SWARM_MODEL = "qwen3:30b-instruct"
-# Default qwen3:8b (5.2 GB) fits every GPU you use, including 12 GB cards like the RTX 4070 SUPER.
-# Bigger options: qwen3:14b (9.3 GB, wants 16 GB), qwen3:30b-instruct (19 GB, wants 24 GB).
-if (-not $env:SWARM_MODEL) { $env:SWARM_MODEL = "qwen3:8b" }
+# Model choice, highest priority first: -Model argument, $env:SWARM_MODEL, model.txt, qwen3:8b.
+# Normally just edit model.txt (it also lists which models fit which GPU).
+# A value this script set in an earlier run stays in the terminal; forget it so it never overrides model.txt.
+if ($env:SWARM_MODEL_AUTO) {
+    Remove-Item Env:SWARM_MODEL -ErrorAction SilentlyContinue
+    Remove-Item Env:SWARM_MODEL_AUTO -ErrorAction SilentlyContinue
+}
+$modelSource = "built-in default"
+if ($Model) {
+    $env:SWARM_MODEL = $Model
+    $env:SWARM_MODEL_AUTO = "1"
+    $modelSource = "-Model argument"
+} elseif ($env:SWARM_MODEL) {
+    $modelSource = "`$env:SWARM_MODEL variable left in this terminal (run: Remove-Item Env:SWARM_MODEL to use model.txt)"
+} else {
+    $modelFile = Join-Path $PSScriptRoot "model.txt"
+    if (Test-Path $modelFile) {
+        $line = Get-Content $modelFile | ForEach-Object { $_.Trim() } |
+            Where-Object { $_ -and -not $_.StartsWith("#") } | Select-Object -First 1
+        if ($line) { $env:SWARM_MODEL = $line; $env:SWARM_MODEL_AUTO = "1"; $modelSource = "model.txt" }
+    }
+}
+if (-not $env:SWARM_MODEL) { $env:SWARM_MODEL = "qwen3:8b"; $env:SWARM_MODEL_AUTO = "1" }
 $model = $env:SWARM_MODEL
+Write-Host "[*] Model: $model (from $modelSource)" -ForegroundColor Green
+$versionFile = Join-Path $PSScriptRoot "version.txt"
+if (Test-Path $versionFile) {
+    $versionLabel = Get-Content $versionFile | ForEach-Object { $_.Trim() } |
+        Where-Object { $_ -and -not $_.StartsWith("#") } | Select-Object -First 1
+    if ($versionLabel) { Write-Host "[*] Project version: $versionLabel (edit version.txt)" -ForegroundColor Green }
+}
 
 # Show GPU memory and warn if the chosen model is probably too big (it would spill to the CPU).
 $vramMiB = $null
@@ -142,8 +170,8 @@ if (!(Test-Path $venvPython)) {
     if ($LASTEXITCODE -ne 0 -or !(Test-Path $venvPython)) { Fail "Failed to create the virtual environment." }
 }
 
-Write-Host "[+] Installing openai and pydantic directly into thesis_venv..." -ForegroundColor Yellow
-& $venvPython -m pip install -q --disable-pip-version-check openai pydantic
+Write-Host "[+] Installing pydantic into thesis_venv..." -ForegroundColor Yellow
+& $venvPython -m pip install -q --disable-pip-version-check pydantic
 if ($LASTEXITCODE -ne 0) { Fail "pip install failed (network or proxy blocking PyPI?)." }
 
 # ---------------------------------------------------------------
@@ -182,8 +210,8 @@ if ($LASTEXITCODE -ne 0) { Fail "Could not pull $model (disk quota or network?).
 # 7. Make sure the project files are present
 # ---------------------------------------------------------------
 foreach ($f in @($Script, "run_loop.py", "schemas.py", "state_machine.py", "handoff.py", "soul_loader.py",
-                 "worker_schemas.py", "workers.py", "output_writer.py", "tests\w3_cases.json",
-                 "skills\__init__.py", "skills\builtin.py",
+                 "worker_schemas.py", "workers.py", "output_writer.py", "model.txt", "version.txt", "version_info.py", "reality.py", "data\cost_reference.json", "tests\w3_cases.json",
+                 "skills\__init__.py", "skills\builtin.py", "skills\web.py",
                  "agents\tech_planner\SOUL.md", "agents\logistics\SOUL.md", "agents\auditor\SOUL.md",
                  "agents\transit\SOUL.md", "agents\outreach\SOUL.md")) {
     if (!(Test-Path (Join-Path $PSScriptRoot $f))) { Fail "$f not found next to setup.ps1." }

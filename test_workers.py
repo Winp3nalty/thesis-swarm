@@ -23,13 +23,15 @@ from pathlib import Path
 
 import output_writer
 import run_loop
+from version_info import version_info
 import workers
 
 CASES_FILE = Path(__file__).resolve().parent / "tests" / "w3_cases.json"
 OUT_FILE = "worker_results.csv"
 HEADER = ["timestamp", "agent", "case_id", "model", "gpu_name", "attempts",
           "first_schema_ok", "first_semantic_ok", "final_ok",
-          "first_problems", "prompt_tokens", "completion_tokens", "seconds", "error"]
+          "first_problems", "prompt_tokens", "completion_tokens", "seconds", "error",
+          "version", "git_commit", "rules_hash"]
 
 
 def run_case(agent: str, case: dict, out_dir=None) -> dict:
@@ -57,11 +59,12 @@ def run_case(agent: str, case: dict, out_dir=None) -> dict:
             data = next((a["response"] for a in reversed(info["attempt_log"]) if a.get("response")), None)
         render = output_writer.render_transit_md if agent == "transit" else output_writer.render_outreach_md
         link = f"{agent}/{case['id']}.md"
-        output_writer.write_text(out_dir / link, render(case, info, data, final_ok))
+        output_writer.write_text(out_dir / link, render(case, info, data, final_ok, error))
         output_writer.write_json(out_dir / agent / f"{case['id']}.json",
-                                 {"case": case, "final_ok": final_ok, "error": error, "result": data,
+                                 {**version_info(), "case": case, "final_ok": final_ok, "error": error, "result": data,
                                   "attempts": info["attempt_log"]})
     return {
+        **version_info(),
         "link": link,
         "first_problems": " | ".join(info["first_problems"])[:300],
         "timestamp": datetime.now().isoformat(timespec="seconds"),

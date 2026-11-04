@@ -5,7 +5,6 @@ from pathlib import Path
 
 import output_writer
 import run_loop
-import workers
 import test_workers_offline as tw
 import test_workers
 
@@ -14,6 +13,7 @@ def test_swarm_outputs():
     import os
     import test_loop_offline as tl
     os.chdir(tempfile.mkdtemp())
+    os.environ["SWARM_OFFLINE"] = "1"
     run_loop.call_structured_llm = tl.fake_llm
     run_loop.SAVE_OUTPUTS = True
     assert run_loop.run_swarm_loop("3-day Shenzhen trip", inject_mode="missing_hub") is not None

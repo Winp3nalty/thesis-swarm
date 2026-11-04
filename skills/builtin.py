@@ -1,4 +1,4 @@
-"""Built-in skills. All pure functions over local data, no network access."""
+"""Built-in skills. Pure functions over local data, no network access (internet skills are in web.py)."""
 from __future__ import annotations
 
 import json
@@ -8,8 +8,9 @@ from . import skill
 
 _DATA = Path(__file__).resolve().parent.parent / "data"
 
-# PLACEHOLDER rates (units of currency per 1 EUR). Put real, dated values in
-# data/fx_rates.json, for example {"EUR": 1.0, "CNY": <rate>, "USD": <rate>}.
+# Static fallback rates (units of currency per 1 EUR), used only when the internet and the cache
+# are both unavailable (see skills/web.py). Put real, dated values in data/fx_rates.json, for
+# example {"EUR": 1.0, "CNY": <rate>, "USD": <rate>}, to override them.
 _DEFAULT_RATES = {"EUR": 1.0, "CNY": 8.0, "USD": 1.1}
 
 
@@ -23,18 +24,6 @@ def _rates() -> dict:
 def _minutes(hhmm: str) -> int:
     h, m = hhmm.strip().split(":")
     return int(h) * 60 + int(m)
-
-
-@skill("currency_convert",
-       "Convert an amount between currencies using the static rate table.",
-       "amount: float, from_ccy: str, to_ccy: str")
-def currency_convert(amount: float, from_ccy: str, to_ccy: str) -> dict:
-    rates = _rates()
-    f, t = from_ccy.upper(), to_ccy.upper()
-    if f not in rates or t not in rates:
-        raise ValueError(f"unsupported currency (known: {', '.join(rates)})")
-    value = float(amount) / rates[f] * rates[t]
-    return {"amount": round(value, 2), "currency": t}
 
 
 @skill("budget_check",

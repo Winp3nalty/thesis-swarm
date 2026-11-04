@@ -4,6 +4,8 @@ from state_machine import TaskRecord, Status, VALID_TRANSITIONS
 from handoff import handoff
 from soul_loader import build_system_prompt
 from skills import run_skill
+from reality import reality_check, cost_guide_text
+from version_info import version_info, version_line
 import csv
 import json
 import os
@@ -17,7 +19,8 @@ RESULTS_FILE = "results.csv"
 LOG_DIR = "logs"
 CSV_HEADER = ["timestamp", "model", "inject_mode", "iterations",
               "status", "wall_clock_s", "schema_errors",
-              "gpu_name", "prompt_tokens", "completion_tokens", "llm_seconds"]
+              "gpu_name", "prompt_tokens", "completion_tokens", "llm_seconds",
+              "version", "git_commit", "rules_hash"]
 
 _GPU_NAME = None
 
@@ -68,6 +71,7 @@ def log_run(inject_mode, iterations, status, wall_clock_s, schema_errors):
             sum(s.get("prompt_tokens", 0) for s in CALL_STATS),
             sum(s.get("completion_tokens", 0) for s in CALL_STATS),
             f"{sum(s.get('seconds', 0) for s in CALL_STATS):.1f}",
+            *[version_info()[k] for k in ("version", "git_commit", "rules_hash")],
         ])
 
 OLLAMA_URL = "http://localhost:11434"
@@ -75,8 +79,23 @@ NUM_CTX = int(os.environ.get("SWARM_NUM_CTX", "8192"))
 CALL_TIMEOUT_S = 900  # a cold model load plus generation can take minutes
 CALL_STATS: list[dict] = []  # per-call timing and token counts, flushed into the audit log
 
-# One setting for the model: override with  $env:SWARM_MODEL = "qwen3:30b-instruct"
-MODEL_NAME = os.environ.get("SWARM_MODEL", "qwen3:8b")
+def _read_model_file(path=None):
+    """First non-empty, non-comment line of model.txt, or None."""
+    from pathlib import Path
+    p = Path(path) if path else Path(__file__).resolve().parent / "model.txt"
+    try:
+        for line in p.read_text(encoding="utf-8").splitlines():
+            line = line.strip()
+            if line and not line.startswith("#"):
+                return line
+    except OSError:
+        pass
+    return None
+
+
+# Model choice, highest priority first: $env:SWARM_MODEL (setup.ps1 -Model sets it),
+# then model.txt, then the built-in default.
+MODEL_NAME = os.environ.get("SWARM_MODEL") or _read_model_file() or "qwen3:8b"
 
 MAX_BUDGET_EUR = 1200.0
 REQUIRED_HUBS = ["DJI", "HAX", "Huaqiangbei"]
@@ -229,11 +248,39 @@ def agent_tech_planner(
 # AGENT 2: Logistics & Budget Specialist
 # (persona and rules live in agents/logistics/SOUL.md)
 # ==========================================
+def _exchange_rate_context(record: TaskRecord = None) -> str:
+    """Call the internet skill live_exchange_rate and return a prompt block with real rates.
+
+    The orchestrator calls the skill (small local models call tools unreliably) and logs
+    every call, with its source (live, cache or static), in the audit log.
+    """
+    lines = []
+    for ccy in ("CNY", "USD"):
+        res = run_skill("live_exchange_rate", amount=1, from_ccy="EUR", to_ccy=ccy)
+        if not res["ok"]:
+            if record:
+                record.note("logistics", f"skill live_exchange_rate failed: {res['error']}")
+            continue
+        r = res["result"]
+        lines.append(f"1 EUR = {r['amount']} {ccy}")
+        msg = f"skill live_exchange_rate EUR->{ccy}: rate={r['rate']} source={r['source']} date={r['rate_date'] or 'n/a'}"
+        print(f"  [Skill] {msg}" + (" (one web request fetched all rates; the other pair reads the cache)"
+                                    if r["source"] == "live" and ccy == "CNY" else ""))
+        if record:
+            record.note("logistics", msg)
+    if not lines:
+        return ""
+    return ("\nCurrent exchange rates (use them for any price quoted in CNY or USD; "
+            "cost_eur must always be in EUR):\n" + "\n".join(f"- {l}" for l in lines) + "\n")
+
+
 def agent_logistics_specialist(
     rough_plan: RoughItinerary,
     budget_cap: float,
     previous_detailed: ExpeditionPlan = None,
     critique_feedback: list[str] = None,
+    record: TaskRecord = None,
+    temperature: float = 0.2,
 ) -> ExpeditionPlan:
     print("  [Agent 2: Logistics Specialist] Enforcing time slots, transit, and EUR costs...")
     system_prompt = build_system_prompt(
@@ -241,6 +288,8 @@ def agent_logistics_specialist(
         extra=f"Keep total costs strictly under {budget_cap} EUR.",
     )
     user_prompt = f"Rough Outline to Follow:\n{rough_plan.model_dump_json(indent=2)}\n"
+    user_prompt += _exchange_rate_context(record)
+    user_prompt += cost_guide_text(len(rough_plan.days))
 
     if previous_detailed and critique_feedback:
         user_prompt += (
@@ -248,7 +297,15 @@ def agent_logistics_specialist(
             "\nFIX THESE LOGISTICS/BUDGET ERRORS (DO NOT DROP ANY HUBS):\n"
             + "\n".join(f"- {note}" for note in critique_feedback)
         )
-    return call_structured_llm(system_prompt, user_prompt, ExpeditionPlan)
+    plan = call_structured_llm(system_prompt, user_prompt, ExpeditionPlan, temperature=temperature)
+    if previous_detailed and plan.model_dump() == previous_detailed.model_dump():
+        # The model ignored the feedback and repeated itself: say so and sample more freely.
+        print("  [Agent 2] Plan identical to the previous draft. Asking again with a warning.")
+        user_prompt += ("\n\nYOUR NEW DRAFT WAS IDENTICAL TO THE PREVIOUS ONE, so the problems above are still "
+                        "unresolved. Change the schedule and costs as the notes describe.")
+        plan = call_structured_llm(system_prompt, user_prompt, ExpeditionPlan,
+                                   temperature=max(temperature, 0.8))
+    return plan
 
 
 # ==========================================
@@ -256,6 +313,29 @@ def agent_logistics_specialist(
 # (persona and rules live in agents/auditor/SOUL.md)
 # The hard facts come from deterministic skills, not from the LLM's arithmetic.
 # ==========================================
+def _dedupe_notes(notes: list[str]) -> list[str]:
+    """Each problem once: drop the model's echo of the 'Reality Problem(s)' telemetry and exact repeats."""
+    seen, out = set(), []
+    for n in notes:
+        key = " ".join(n.split()).lower()
+        if key.startswith("reality problem") or key in seen:
+            continue
+        seen.add(key)
+        out.append(n)
+    return out
+
+
+SOFT_REJECTION_LIMIT = 3  # consecutive soft-only rejections before the Auditor approves with warnings
+
+
+def is_soft_note(note: str) -> bool:
+    """A soft problem can be waived with a warning (cost below the guide); everything else cannot."""
+    return "below the realistic minimum" in note
+
+
+VERIFY_LOG: list = []  # online checks of the latest audit, saved into the run history
+
+
 def agent_auditor(plan: ExpeditionPlan) -> AuditResult:
     print("  [Agent 3: Auditor Agent] Evaluating feasibility and routing feedback...")
 
@@ -280,12 +360,19 @@ def agent_auditor(plan: ExpeditionPlan) -> AuditResult:
 
     missing_hubs = _missing_hubs(plan)
 
+    # --- Reality checks (internet skills): real places, possible travel times, plausible costs ---
+    reality = reality_check(plan, REQUIRED_HUBS)
+    VERIFY_LOG[:] = reality["log"]
+    for item in reality["log"]:
+        print(f"  [Verify] {item['check']}: {item['name']} -> found={item['found']} ({item['source']}) {item['detail']}")
+
     system_prompt = build_system_prompt("auditor")
     user_prompt = (
         f"Max Allowed Budget: {MAX_BUDGET_EUR} EUR\n"
         f"Actual Summed Cost: {actual_sum:.2f} EUR\n"
         f"Currently Missing Hubs: {missing_hubs}\n"
-        f"Schedule Problems: {schedule_issues or 'none'}\n\n"
+        f"Schedule Problems: {schedule_issues or 'none'}\n"
+        f"Reality Problems: {reality['planner_issues'] + reality['logistics_issues'] or 'none'}\n\n"
         f"Full Plan:\n{plan.model_dump_json(indent=2)}"
     )
     audit = call_structured_llm(system_prompt, user_prompt, AuditResult, temperature=0.0)
@@ -297,15 +384,21 @@ def agent_auditor(plan: ExpeditionPlan) -> AuditResult:
         for h in missing_hubs:
             if not any(h.lower() in note.lower() for note in audit.critique_notes):
                 audit.critique_notes.append(f"Missing mandatory hub: {h}")
-    elif not budget["within_budget"] or schedule_issues:
+    elif reality["planner_issues"]:
+        audit.passed = False
+        audit.failed_agent = "tech_planner"
+        audit.critique_notes.extend(reality["planner_issues"] + reality["logistics_issues"])
+    elif not budget["within_budget"] or schedule_issues or reality["logistics_issues"]:
         audit.passed = False
         audit.failed_agent = "logistics"
+        audit.critique_notes.extend(reality["logistics_issues"])
         if not budget["within_budget"]:
             audit.critique_notes.append(
                 f"Budget exceeded: {actual_sum:.2f} EUR > {MAX_BUDGET_EUR} EUR. Reduce activity or transit costs."
             )
         audit.critique_notes.extend(schedule_issues)
 
+    audit.critique_notes = _dedupe_notes(audit.critique_notes)
     return audit
 
 
@@ -364,14 +457,14 @@ def _fail(record: TaskRecord, note: str) -> None:
 SAVE_OUTPUTS = os.environ.get("SWARM_SAVE_OUTPUTS", "1") != "0"
 
 
-def _save_outputs(request, mode, status, iterations, plan, record):
+def _save_outputs(request, mode, status, iterations, plan, record, warnings=None):
     """Write plan.md/plan.json/history.md under outputs/<run>/. Never lets saving break a run."""
     if not SAVE_OUTPUTS:
         return
     try:
         import output_writer
         d = output_writer.write_swarm_run(request, mode or "none", MODEL_NAME, _gpu_name(), status,
-                                          iterations, plan, record.log_path)
+                                          iterations, plan, record.log_path, warnings=warnings)
         print(f"[OUTPUT] Readable results saved: {d / 'index.md'}")
     except Exception as e:
         print(f"[OUTPUT] Could not save readable results: {type(e).__name__}: {e}")
@@ -384,6 +477,8 @@ def run_swarm_loop(request: str, max_iterations: int = 6, inject_mode: str = Non
     iterations_log = []
     final_status = "CRASH"
     final_plan = None
+    warnings: list[str] = []
+    soft_rejections = 0  # consecutive rejections caused only by soft (cost-level) problems
 
     task_id = f"{datetime.now():%Y%m%d_%H%M%S}_{inject_mode or 'none'}"
     record = TaskRecord(task_id, request, log_dir=LOG_DIR)
@@ -391,6 +486,8 @@ def run_swarm_loop(request: str, max_iterations: int = 6, inject_mode: str = Non
     print("=" * 65)
     print(f"[MISSION START] Request:\n{request}")
     print(f"[CONFIG] model={MODEL_NAME} | inject_mode={inject_mode} | max_iter={max_iterations}")
+    print(f"[VERSION] {version_line()}")
+    record.note("pipeline", f"version {version_line()} | model {MODEL_NAME}")
     print(f"[AUDIT LOG] {record.log_path}")
     print("=" * 65)
 
@@ -421,13 +518,14 @@ def run_swarm_loop(request: str, max_iterations: int = 6, inject_mode: str = Non
                     handoff(record, "tech_planner", "logistics",
                             f"rough itinerary, {len(rough_plan.days)} day(s)")
                     _move(record, Status.SCHEDULING, "logistics")
-                    detailed_plan = agent_logistics_specialist(rough_plan, MAX_BUDGET_EUR)
+                    detailed_plan = agent_logistics_specialist(rough_plan, MAX_BUDGET_EUR, record=record)
                     logistics_retries = 0
                 else:
                     _move(record, Status.SCHEDULING, "logistics")
                     print(f"  [Router] Skipping Agent 1 -> Direct fix in Agent 2 (Attempt {logistics_retries})...")
                     detailed_plan = agent_logistics_specialist(
-                        rough_plan, MAX_BUDGET_EUR, detailed_plan, critique_feedback
+                        rough_plan, MAX_BUDGET_EUR, detailed_plan, critique_feedback, record=record,
+                        temperature=0.7  # a direct fix needs variety, or the model repeats its draft
                     )
 
                 detailed_plan = apply_fault_injection(detailed_plan, iteration, inject_mode)
@@ -444,7 +542,7 @@ def run_swarm_loop(request: str, max_iterations: int = 6, inject_mode: str = Non
                 iterations_log.append({
                     "iteration": iteration, "planner_ran": run_planner, "total_cost": total_cost,
                     "rough_plan": rough_plan.model_dump(), "detailed_plan": detailed_plan.model_dump(),
-                    "audit": audit.model_dump()})
+                    "audit": audit.model_dump(), "verification": list(VERIFY_LOG)})
 
             except (ValidationError, StructuredOutputError) as e:
                 schema_errors += 1
@@ -461,6 +559,26 @@ def run_swarm_loop(request: str, max_iterations: int = 6, inject_mode: str = Non
                             time.time() - start_time, schema_errors)
                     return None
                 continue
+
+            soft_only = (not audit.passed and bool(audit.critique_notes)
+                         and all(is_soft_note(n) for n in audit.critique_notes))
+            soft_rejections = soft_rejections + 1 if soft_only else 0
+            if soft_only and soft_rejections >= SOFT_REJECTION_LIMIT:
+                # Adapted from Edict's review rule: after 3 rounds the reviewer approves and attaches
+                # its suggestions. Only soft problems qualify; missing hubs, budget overruns, overlaps
+                # and unverified places are never waived.
+                elapsed = time.time() - start_time
+                warnings = list(audit.critique_notes)
+                iterations_log[-1]["forced_approval"] = True
+                handoff(record, "auditor", "user", f"plan approved with {len(warnings)} warning(s)")
+                record.transition(Status.COMPLETED, "auditor", "approved with warnings after repeated soft rejections")
+                print(f"\n[APPROVED WITH WARNINGS] Only soft problems remained after {soft_rejections} rounds ({elapsed:.1f}s)")
+                for w in warnings:
+                    print(f"   ! {w}")
+                print(f"[STATE PATH] {' -> '.join(record.path_taken())}")
+                log_run(inject_mode, iterations_used, "SUCCESS_WITH_WARNINGS", elapsed, schema_errors)
+                final_status, final_plan = "SUCCESS_WITH_WARNINGS", detailed_plan.model_dump()
+                return detailed_plan
 
             if audit.passed:
                 elapsed = time.time() - start_time
@@ -483,7 +601,8 @@ def run_swarm_loop(request: str, max_iterations: int = 6, inject_mode: str = Non
 
                 if target_agent == "logistics":
                     logistics_retries += 1
-                    if logistics_retries >= 2:
+                    cost_too_low_only = soft_only
+                    if logistics_retries >= 2 and not cost_too_low_only:
                         print("  [ESCALATION] Agent 2 saturated! Escalating fault back to Agent 1...")
                         target_agent = "tech_planner"
                         record.note("pipeline", "escalation: logistics saturated, back to tech_planner")
@@ -511,7 +630,7 @@ def run_swarm_loop(request: str, max_iterations: int = 6, inject_mode: str = Non
 
     finally:
         _report_llm_stats(record)
-        _save_outputs(request, inject_mode, final_status, iterations_log, final_plan, record)
+        _save_outputs(request, inject_mode, final_status, iterations_log, final_plan, record, warnings)
 
 
 if __name__ == "__main__":
