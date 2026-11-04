@@ -8,5 +8,5 @@ ollama_models/
 logs/
 outputs/
 data/*cache.json
-/results.csv
+/archive/results.csv
 /worker_results.csv
