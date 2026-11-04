@@ -8,6 +8,25 @@ $ProgressPreference = 'SilentlyContinue'
 # Always work from the folder this script lives in (run_loop.py and schemas.py are here)
 Set-Location $PSScriptRoot
 
+# Model used by the swarm. Override before running, e.g.  $env:SWARM_MODEL = "qwen3:30b-instruct"
+# Default qwen3:8b (5.2 GB) fits every GPU you use, including 12 GB cards like the RTX 4070 SUPER.
+# Bigger options: qwen3:14b (9.3 GB, wants 16 GB), qwen3:30b-instruct (19 GB, wants 24 GB).
+if (-not $env:SWARM_MODEL) { $env:SWARM_MODEL = "qwen3:8b" }
+$model = $env:SWARM_MODEL
+
+# Show GPU memory and warn if the chosen model is probably too big (it would spill to the CPU).
+$vramMiB = $null
+try { $vramMiB = [int]((& nvidia-smi --query-gpu=memory.total --format=csv,noheader,nounits 2>$null) | Select-Object -First 1) } catch { }
+if ($vramMiB) {
+    Write-Host "[*] GPU memory: $vramMiB MiB, model: $model" -ForegroundColor Green
+    if ($vramMiB -lt 14000 -and $model -match "(14b|27b|30b|32b|35b)") {
+        Write-Host "[!] $model is probably too large for this GPU and will run slowly on the CPU. Use qwen3:8b." -ForegroundColor Yellow
+    }
+}
+
+# Note: the context size (8192 tokens) is now set per request by run_loop.py, so no
+# Ollama environment variable is needed. Override with $env:SWARM_NUM_CTX if required.
+
 function Fail($msg) {
     Write-Host "[!] $msg" -ForegroundColor Red
     exit 1
@@ -146,9 +165,9 @@ if (Test-OllamaUp) {
 # ---------------------------------------------------------------
 # 6. Pull qwen2.5:7b if missing
 # ---------------------------------------------------------------
-Write-Host "[+] Verifying qwen2.5:7b model..." -ForegroundColor Yellow
-& $ollamaExe pull qwen2.5:7b
-if ($LASTEXITCODE -ne 0) { Fail "Could not pull qwen2.5:7b (disk quota or network?)." }
+Write-Host "[+] Verifying $model model..." -ForegroundColor Yellow
+& $ollamaExe pull $model
+if ($LASTEXITCODE -ne 0) { Fail "Could not pull $model (disk quota or network?)." }
 
 # ---------------------------------------------------------------
 # 7. Make sure the project files are present

@@ -1,4 +1,3 @@
-from openai import OpenAI
 from pydantic import BaseModel, ValidationError
 from schemas import RoughItinerary, ExpeditionPlan, AuditResult
 from state_machine import TaskRecord, Status, VALID_TRANSITIONS
@@ -6,18 +5,52 @@ from handoff import handoff
 from soul_loader import build_system_prompt
 from skills import run_skill
 import csv
+import json
 import os
+import subprocess
 import time
+import urllib.error
+import urllib.request
 from datetime import datetime
 
 RESULTS_FILE = "results.csv"
 LOG_DIR = "logs"
 CSV_HEADER = ["timestamp", "model", "inject_mode", "iterations",
-              "status", "wall_clock_s", "schema_errors"]
+              "status", "wall_clock_s", "schema_errors",
+              "gpu_name", "prompt_tokens", "completion_tokens", "llm_seconds"]
+
+_GPU_NAME = None
+
+
+def _gpu_name() -> str:
+    """GPU model from nvidia-smi, or 'none' if no NVIDIA GPU/driver is found (cached)."""
+    global _GPU_NAME
+    if _GPU_NAME is None:
+        try:
+            out = subprocess.run(["nvidia-smi", "--query-gpu=name", "--format=csv,noheader"],
+                                 capture_output=True, text=True, timeout=10)
+            lines = out.stdout.strip().splitlines()
+            _GPU_NAME = lines[0].strip() if out.returncode == 0 and lines else "none"
+        except (OSError, subprocess.SubprocessError):
+            _GPU_NAME = "none"
+    return _GPU_NAME
 
 
 def log_run(inject_mode, iterations, status, wall_clock_s, schema_errors):
-    """Append one row per run. Creates the file with a header on first write."""
+    """
+    Append one row per run. Token and LLM-time columns are summed from this run's calls.
+    If an existing results file has a different header, it is renamed (never overwritten).
+    """
+    if os.path.exists(RESULTS_FILE):
+        with open(RESULTS_FILE, newline="") as f:
+            first_line = f.readline().strip()
+        if first_line != ",".join(CSV_HEADER):
+            backup = "results_old.csv"
+            if os.path.exists(backup):
+                backup = f"results_old_{datetime.now():%Y%m%d_%H%M%S}.csv"
+            os.replace(RESULTS_FILE, backup)
+            print(f"[RESULTS] Old results file had a different format, renamed to {backup}")
+
     file_exists = os.path.exists(RESULTS_FILE)
     with open(RESULTS_FILE, "a", newline="") as f:
         writer = csv.writer(f)
@@ -31,13 +64,64 @@ def log_run(inject_mode, iterations, status, wall_clock_s, schema_errors):
             status,
             f"{wall_clock_s:.2f}",
             schema_errors,
+            _gpu_name(),
+            sum(s.get("prompt_tokens", 0) for s in CALL_STATS),
+            sum(s.get("completion_tokens", 0) for s in CALL_STATS),
+            f"{sum(s.get('seconds', 0) for s in CALL_STATS):.1f}",
         ])
 
-client = OpenAI(base_url="http://localhost:11434/v1", api_key="ollama")
-MODEL_NAME = "qwen2.5:7b"
+OLLAMA_URL = "http://localhost:11434"
+NUM_CTX = int(os.environ.get("SWARM_NUM_CTX", "8192"))
+CALL_TIMEOUT_S = 900  # a cold model load plus generation can take minutes
+CALL_STATS: list[dict] = []  # per-call timing and token counts, flushed into the audit log
+
+# One setting for the model: override with  $env:SWARM_MODEL = "qwen3:30b-instruct"
+MODEL_NAME = os.environ.get("SWARM_MODEL", "qwen3:8b")
 
 MAX_BUDGET_EUR = 1200.0
 REQUIRED_HUBS = ["DJI", "HAX", "Huaqiangbei"]
+EXPECTED_DAYS = 3
+
+
+def _missing_hubs(plan: ExpeditionPlan) -> list[str]:
+    """Mandatory hubs that no activity actually takes place at (checked on 'location')."""
+    locations = " | ".join(act.location for day in plan.days for act in day.activities).lower()
+    return [h for h in REQUIRED_HUBS if h.lower() not in locations]
+
+
+def _normalize_plan(plan: ExpeditionPlan, record: TaskRecord) -> ExpeditionPlan:
+    """Overwrite model-reported summary fields with values computed from the activities."""
+    actual = round(sum(act.cost_eur for day in plan.days for act in day.activities), 2)
+    if abs(plan.total_budget_eur - actual) > 0.01:
+        record.note("pipeline", f"model reported total_budget_eur={plan.total_budget_eur}, actual sum={actual}")
+        plan.total_budget_eur = actual
+    plan.duration_days = len(plan.days)
+    return plan
+
+
+class StructuredOutputError(ValueError):
+    """The model answered, but the reply was cut off or unusable."""
+
+
+class OllamaHTTPError(RuntimeError):
+    def __init__(self, status: int, body: str):
+        super().__init__(f"Ollama HTTP {status}: {body[:300]}")
+        self.status = status
+        self.body = body
+
+
+def _post_chat(payload: dict) -> dict:
+    """POST to Ollama's native /api/chat (kept separate so tests can replace it)."""
+    req = urllib.request.Request(
+        f"{OLLAMA_URL}/api/chat",
+        data=json.dumps(payload).encode("utf-8"),
+        headers={"Content-Type": "application/json"},
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=CALL_TIMEOUT_S) as resp:
+            return json.load(resp)
+    except urllib.error.HTTPError as e:
+        raise OllamaHTTPError(e.code, e.read().decode("utf-8", "replace"))
 
 
 def call_structured_llm(
@@ -46,16 +130,74 @@ def call_structured_llm(
     response_model: type[BaseModel],
     temperature: float = 0.2,
 ):
-    completion = client.beta.chat.completions.parse(
-        model=MODEL_NAME,
-        messages=[
+    """
+    One structured call through Ollama's native chat API.
+    - 'format' is the Pydantic JSON schema, so the reply is constrained to valid JSON.
+    - 'think': False switches off Qwen3's hidden reasoning, which otherwise burns
+      thousands of tokens per call (slow, and can fill the context window).
+    - num_ctx is set per request, so no environment variable is needed.
+    """
+    qwen3_hybrid = (MODEL_NAME.startswith("qwen3") and "instruct" not in MODEL_NAME
+                    and "thinking" not in MODEL_NAME)
+    if qwen3_hybrid:
+        system_prompt += "\n\n/no_think"  # extra safety for older Ollama versions
+    payload = {
+        "model": MODEL_NAME,
+        "messages": [
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": user_prompt},
         ],
-        response_format=response_model,
-        temperature=temperature,
-    )
-    return completion.choices[0].message.parsed
+        "stream": False,
+        "format": response_model.model_json_schema(),
+        "options": {"temperature": temperature, "num_ctx": NUM_CTX},
+    }
+    if MODEL_NAME.startswith("qwen3"):
+        payload["think"] = False
+
+    started = time.time()
+    try:
+        data = _post_chat(payload)
+    except OllamaHTTPError as e:
+        if "think" in payload and "think" in e.body.lower():
+            payload.pop("think")  # this model/server does not support the switch
+            data = _post_chat(payload)
+        else:
+            raise
+    seconds = time.time() - started
+
+    message = data.get("message") or {}
+    content = message.get("content") or ""
+    CALL_STATS.append({
+        "ts": datetime.now().isoformat(timespec="seconds"),
+        "schema": response_model.__name__,
+        "seconds": round(seconds, 1),
+        "prompt_tokens": data.get("prompt_eval_count", 0),
+        "completion_tokens": data.get("eval_count", 0),
+        "thinking_chars": len(message.get("thinking") or ""),
+        "done_reason": data.get("done_reason"),
+    })
+
+    if data.get("done_reason") == "length":
+        head = content[:200].replace("\n", " ")
+        raise StructuredOutputError(
+            f"reply to {response_model.__name__} was cut off "
+            f"(done_reason=length, num_ctx={NUM_CTX}, content starts: {head!r})"
+        )
+    return response_model.model_validate_json(content)  # ValidationError is retried by the loop
+
+
+def _report_llm_stats(record: TaskRecord) -> None:
+    """Write the per-call timing/token stats to the audit log and print a summary."""
+    global CALL_STATS
+    stats, CALL_STATS = CALL_STATS, []
+    if not stats:
+        return
+    for s in stats:
+        record.note("llm", json.dumps(s))
+    print(f"[LLM STATS] calls={len(stats)} | llm_time={sum(s['seconds'] for s in stats):.1f}s"
+          f" | prompt_tokens={sum(s['prompt_tokens'] for s in stats)}"
+          f" | completion_tokens={sum(s['completion_tokens'] for s in stats)}"
+          f" | thinking_chars={sum(s['thinking_chars'] for s in stats)}")
 
 
 # ==========================================
@@ -69,7 +211,10 @@ def agent_tech_planner(
 ) -> RoughItinerary:
     print("  [Agent 1: Tech Planner] Designing high-level technical itinerary...")
     system_prompt = build_system_prompt("tech_planner")
-    user_prompt = f"User Request: {user_request}\n"
+    user_prompt = (
+        f"User Request: {user_request}\n"
+        f"Mandatory hubs (each one must be visited; use these exact names): {', '.join(REQUIRED_HUBS)}\n"
+    )
 
     if previous_plan and critique_feedback:
         user_prompt += (
@@ -121,15 +266,19 @@ def agent_auditor(plan: ExpeditionPlan) -> AuditResult:
 
     # --- Skill: schedule_check (per day) ---
     schedule_issues = []
+    if len(plan.days) != EXPECTED_DAYS:
+        schedule_issues.append(f"Plan has {len(plan.days)} day(s) but {EXPECTED_DAYS} are required.")
     for day in plan.days:
+        if not day.activities:
+            schedule_issues.append(f"Day {day.day}: no activities planned. Every day needs at least one activity.")
+            continue
         res = run_skill("schedule_check", activities=[a.model_dump() for a in day.activities])
         if not res["ok"]:
             schedule_issues.append(f"Day {day.day}: could not check times ({res['error']}). Use 24-hour HH:MM.")
         elif not res["result"]["ok"]:
             schedule_issues.extend(f"Day {day.day}: {issue}" for issue in res["result"]["issues"])
 
-    plan_text = plan.model_dump_json().lower()
-    missing_hubs = [h for h in REQUIRED_HUBS if h.lower() not in plan_text]
+    missing_hubs = _missing_hubs(plan)
 
     system_prompt = build_system_prompt("auditor")
     user_prompt = (
@@ -184,8 +333,7 @@ def apply_fault_injection(
 
     # Test 2: Force a budget overrun on Iteration 1 -> Should skip Agent 1 & route to LOGISTICS
     if inject_mode == "budget_spike" and iteration == 1:
-        plan_text = detailed_plan.model_dump_json().lower()
-        if any(h.lower() not in plan_text for h in REQUIRED_HUBS):
+        if _missing_hubs(detailed_plan):
             print("  [FAULT SKIPPED] Base plan already invalid - not isolating budget fault.")
             return detailed_plan  # let organic failure dominate; don't pretend to test budget
         detailed_plan = detailed_plan.model_copy(deep=True)
@@ -264,6 +412,7 @@ def run_swarm_loop(request: str, max_iterations: int = 6, inject_mode: str = Non
                     )
 
                 detailed_plan = apply_fault_injection(detailed_plan, iteration, inject_mode)
+                detailed_plan = _normalize_plan(detailed_plan, record)
 
                 total_cost = sum(act.cost_eur for day in detailed_plan.days for act in day.activities)
                 print(f"  [Pipeline Output] Generated {len(detailed_plan.days)} days | Summed Cost: {total_cost:.2f} EUR")
@@ -274,7 +423,7 @@ def run_swarm_loop(request: str, max_iterations: int = 6, inject_mode: str = Non
                 audit = agent_auditor(detailed_plan)
                 retrying = False
 
-            except ValidationError as e:
+            except (ValidationError, StructuredOutputError) as e:
                 schema_errors += 1
                 retrying = True
                 print(f"  [Schema Error #{schema_errors}] Parsing failed on iteration {iteration}: {e}")
@@ -331,6 +480,9 @@ def run_swarm_loop(request: str, max_iterations: int = 6, inject_mode: str = Non
         _fail(record, f"crash: {type(e).__name__}: {e}")
         log_run(inject_mode, iterations_used, f"CRASH_{type(e).__name__}", elapsed, schema_errors)
         return None
+
+    finally:
+        _report_llm_stats(record)
 
 
 if __name__ == "__main__":

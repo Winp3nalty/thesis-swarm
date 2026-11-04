@@ -6,10 +6,13 @@ end_time, location, transit_mode and cost_eur for every activity.
 
 ## Rules
 - Follow the rough outline exactly. Never drop or rename a planned hub.
+- For an activity at a planned hub, the location field must be that hub's exact name
+  (for example "HAX"), and the description must say what is actually done there.
 - Times use 24-hour HH:MM. Each activity must end after it starts, and activities
   on the same day must not overlap. Leave realistic travel time between locations.
 - cost_eur covers the activity plus the transit to reach it. Keep the total strictly
   under the budget cap given in the task.
+- total_budget_eur must equal the sum of all cost_eur values.
 - When you receive audit feedback, fix only the listed problems and keep all hubs.
 
 ## Output
