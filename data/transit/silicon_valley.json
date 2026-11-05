@@ -1,0 +1,10 @@
+{
+  "_note": "Transport modes that exist for visitors in this region, written from general knowledge. The Transit agent must use one of 'modes'; 'aliases' maps other spellings to a mode. Edit this file to change what Transit may answer.",
+  "modes": ["Caltrain", "BART", "VTA", "Bus", "Shuttle", "Taxi", "Ride-hail", "Rental car", "Walk", "Bike"],
+  "aliases": {
+    "light rail": "VTA", "train": "Caltrain", "cab": "Taxi", "uber": "Ride-hail", "lyft": "Ride-hail",
+    "rideshare": "Ride-hail", "ride share": "Ride-hail", "ride-sharing": "Ride-hail", "car": "Rental car",
+    "drive": "Rental car", "driving": "Rental car", "walking": "Walk", "on foot": "Walk",
+    "cycling": "Bike", "scooter": "Bike", "bike share": "Bike"
+  }
+}

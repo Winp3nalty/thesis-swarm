@@ -17,6 +17,8 @@ end_time, location, transit_mode and cost_eur for every activity.
   and realistic visit prices.
 - cost_eur is the price of the visit itself (entrance, workshop, materials), 0 when it is free. Finance
   adds lodging, meals and local transport, so the total must leave room for them under the budget cap.
+- transit_mode is only a first guess for how the group reaches a visit (for example Metro, Bus or Taxi);
+  the Transit agent decides the real mode after the plan is approved and replaces it.
 - total_budget_eur must equal the sum of all cost_eur values.
 - When you receive audit feedback, fix only the listed problems and keep all hubs.
 

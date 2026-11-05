@@ -351,6 +351,7 @@ def run_swarm_loop(req: Requirements, max_iterations: int = 6, inject_mode: str 
                 log_run(inject_mode, iterations_used, "SUCCESS_WITH_WARNINGS", elapsed, schema_errors)
                 final_status, final_plan = "SUCCESS_WITH_WARNINGS", detailed_plan.model_dump()
                 coordination = _finish_with_dispatcher(dispatcher, detailed_plan, workers, warnings, final_status)
+                final_plan = detailed_plan.model_dump()  # Transit may have set the transport modes
                 return detailed_plan
 
             if audit.passed:
@@ -363,6 +364,7 @@ def run_swarm_loop(req: Requirements, max_iterations: int = 6, inject_mode: str 
                 log_run(inject_mode, iterations_used, "SUCCESS", elapsed, schema_errors)
                 final_status, final_plan = "SUCCESS", detailed_plan.model_dump()
                 coordination = _finish_with_dispatcher(dispatcher, detailed_plan, workers, warnings, final_status)
+                final_plan = detailed_plan.model_dump()  # Transit may have set the transport modes
                 return detailed_plan
             else:
                 print(f"\n[REJECTED] Blame assigned to: [{audit.failed_agent.upper()}]")

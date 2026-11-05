@@ -1,0 +1,9 @@
+{
+  "_note": "Transport modes that exist for visitors in this city, written from general knowledge. The Transit agent must use one of 'modes'; 'aliases' maps other spellings to a mode. Edit this file to change what Transit may answer.",
+  "modes": ["Metro", "Bus", "Taxi", "Ride-hail", "Walk", "Bike", "Shuttle", "High-speed rail"],
+  "aliases": {
+    "subway": "Metro", "underground": "Metro", "cab": "Taxi", "didi": "Ride-hail", "rideshare": "Ride-hail",
+    "ride share": "Ride-hail", "ride-sharing": "Ride-hail", "walking": "Walk", "on foot": "Walk",
+    "cycling": "Bike", "bike share": "Bike", "train": "High-speed rail"
+  }
+}

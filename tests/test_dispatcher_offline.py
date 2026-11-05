@@ -89,6 +89,9 @@ def test_loop_with_workers():
         assert "Expedition handbook" in hb and "Cost report" in hb and "Outreach emails" in hb
         assert json.loads((run / "handbook.json").read_text(encoding="utf-8"))["plan"]["days"]
         assert "Cost report" in (run / "plan.md").read_text(encoding="utf-8")
+        assert s["transit_modes_set"] > 0, s  # v0.9.7: Transit's mode replaces Logistics' first guess in the plan
+        planmd = (run / "plan.md").read_text(encoding="utf-8")
+        assert "from hotel" in planmd and "Metro" in planmd, "transit modes not written into plan.md"
         assert "Order check" in (run / "transit_day1.md").read_text(encoding="utf-8")
         assert "Practical notes" in (run / "plan.md").read_text(encoding="utf-8"), "visa and SIM section missing"
         events = [json.loads(l) for l in sorted(Path("logs").glob("audit_*.jsonl"))[-1].read_text().splitlines()]

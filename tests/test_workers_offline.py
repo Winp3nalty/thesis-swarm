@@ -153,6 +153,43 @@ def test_transit_checked_against_driving_time():
     assert "leg 1: about 12 min by car" in seen["p"] and "leg 2" not in seen["p"].split("Measured")[1], seen["p"]
 
 
+def test_transit_mode_must_be_a_mode_of_the_city():
+    from swarm.code_agents.transit_modes import load_transit_modes, canonical_mode
+    sz, sv = load_transit_modes("shenzhen"), load_transit_modes("silicon_valley")
+    assert "Metro" in sz["modes"] and "BART" in sv["modes"] and load_transit_modes("nowhere") == {}
+    assert canonical_mode("Metro Line 1", sz) == "Metro" and canonical_mode("subway", sz) == "Metro"
+    assert canonical_mode("Uber", sv) == "Ride-hail" and canonical_mode("BART", sz) is None
+    stops = ["A", "B"]
+    def plan(mode):
+        return TransitPlan(legs=[TransitLeg(from_stop="A", to_stop="B", mode=mode, minutes=20, cost_eur=3)])
+    bad = transit.validate_transit(plan("BART"), stops, None, sz, "Shenzhen")
+    assert len(bad) == 1 and "'BART'" in bad[0] and "Metro" in bad[0], bad
+    assert transit.validate_transit(plan("Metro Line 1"), stops, None, sz, "Shenzhen") == []
+    assert transit.validate_transit(plan("BART"), stops, None, None, "Shenzhen") == [], "no list: no check"
+    seen = {}
+    real = client.call_structured_llm
+    client.call_structured_llm = lambda sp, up, rm, temperature=0.2: seen.setdefault("p", up) and good_llm(sp, up, rm)
+    try:
+        transit.agent_transit("Shenzhen", stops, mode_rules=sz)
+    finally:
+        client.call_structured_llm = real
+    assert "Metro, Bus, Taxi" in seen["p"], seen["p"]
+
+
+def test_transit_modes_are_written_into_the_plan():
+    from types import SimpleNamespace as NS
+    from swarm.code_agents.transit_modes import write_modes_into_plan, load_transit_modes
+    rules = load_transit_modes("silicon_valley")
+    acts = [NS(transit_mode="car"), NS(transit_mode="car"), NS(transit_mode="car")]
+    plan = NS(days=[NS(day=1)])
+    legs = [{"mode": "Caltrain to Palo Alto"}, {"mode": "uber"}]
+    assert write_modes_into_plan(plan, 1, acts, legs, rules) == 3
+    assert [a.transit_mode for a in acts] == ["from hotel", "Caltrain", "Ride-hail"]
+    keep = [NS(transit_mode="car"), NS(transit_mode="car")]
+    assert write_modes_into_plan(plan, 1, keep, [], rules) == 0 and keep[0].transit_mode == "car", \
+        "no matching legs (route failed): Logistics' value stays"
+
+
 def test_drive_times_from_osrm_skill():
     from swarm.code_agents import dispatcher
     from swarm.core.requirements_schema import load_scenario

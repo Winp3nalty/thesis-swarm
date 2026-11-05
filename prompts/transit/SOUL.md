@@ -10,6 +10,8 @@ each consecutive pair of stops.
 - from_stop and to_stop must repeat the stop names exactly as given.
 - Choose a realistic local mode for the city (for example metro, bus, taxi or walking
   in Shenzhen and Shanghai; Caltrain, BART, VTA or rideshare in the Bay Area).
+  When the task lists the transport modes of the city, every leg's mode must be one of them, named as written.
+  The mode you choose is written into the plan, so choose the way a student group would really travel.
 - minutes is whole-number door-to-door travel time including waiting, 1 to 300.
 - cost_eur is the cost of that leg in euros, 0 or more (walking is 0).
 - When the task gives a measured driving time for a leg, your minutes must be realistic against it

@@ -53,7 +53,7 @@ format as `requirements.json`. The single-prompt baseline reads the same file.
 | Dispatcher (尚书省) | Task board; hands work to every agent and takes results back; routes Justice's rejections; runs the workers | **code** | BUILT v0.9a (`dispatcher.py`, `handoff.py`) | `Dispatcher`, `TaskBoard` |
 | Logistics (工部) | visits, times and visit prices only | LLM | BUILT | `agent_logistics_specialist`, `prompts/logistics/SOUL.md` |
 | Finance (户部) | lodging, meals, local transport by rule; cost report in EUR and local currency, Transit estimates compared | **code** | BUILT v0.9b (`finance.py`) | `agent_finance`, `finance_report` |
-| Transit (兵部) | legs between the places of a day, checked against OSRM; order and cluster check | LLM + **code** | BUILT (order check v0.9b, `route_order.py`) | `llm_agents/transit.py: agent_transit` |
+| Transit (兵部) | legs between the places of a day, checked against OSRM; order and cluster check; owns the transport mode (v0.9.7) | LLM + **code** | BUILT (order check v0.9b, `route_order.py`; modes `transit_modes.py`) | `llm_agents/transit.py: agent_transit` |
 | Rites (礼部) | outreach emails; sentence-level check against invented claims | LLM + **code** | BUILT, run by the Dispatcher | `workers.agent_outreach` |
 | Local Logistics (吏部) | visa, SIM, payments, transport, each section with named official sources | **code** | BUILT v0.9b (`local_logistics.py`, `data/practical/`) | `agent_local_logistics` |
 | Static Web (工部) | handbook.md and handbook.json from everything the agents produced | **code** | BUILT v0.9b (`static_web.py`) | `agent_static_web` |
@@ -158,3 +158,4 @@ Borrowed ideas and their status are listed in `THIRD_PARTY.md`.
   `workers.py` became `llm_agents/retry.py`, `transit.py` and `outreach.py`; the model call and the Planner/Logistics
   agents left `run_loop.py` for `llm_agents/client.py`, `tech_planner.py` and `logistics.py`. The rules hash is unchanged.
 - Version names are numbers only from here on: v0.9.6, v0.9.7, ... v1.0 (earlier labels v0.9a to v0.9e correspond to v0.9.1 to v0.9.5).
+- v0.9.7: Transit owns the transport mode. `data/transit/<profile>.json` lists the modes that exist in a city (Shenzhen: Metro, Bus, Taxi, ...; Silicon Valley: Caltrain, BART, VTA, ...) plus aliases. The Transit prompt lists them, `validate_transit` rejects any other mode (BART in Shenzhen) and feeds the reason back, and after Transit succeeds the Dispatcher writes the mode of each leg into the `transit_mode` of the visit it reaches (the first visit of a day is "from hotel"). If a day's route failed, Logistics' first guess stays. The mode files are part of the rules hash.

@@ -13,6 +13,7 @@ A worker that fails never fails the expedition plan: the failure is recorded and
 from __future__ import annotations
 
 from swarm.core.handoff import handoff
+from swarm.code_agents.transit_modes import load_transit_modes, write_modes_into_plan
 from swarm.llm_agents.outreach import agent_outreach
 from swarm.llm_agents.transit import agent_transit
 from swarm.skills import run_skill
@@ -22,16 +23,21 @@ from swarm.core.state_machine import TaskRecord
 MAX_STOPS_PER_DAY = 6
 
 
+def stop_activities(day) -> list:
+    """The activity of each real place of one day, in visiting order (a place repeated back to back counts once)."""
+    from swarm.code_agents.reality import _is_generic
+    acts: list = []
+    for act in day.activities:
+        loc = act.location.strip()
+        if loc and not _is_generic(loc) and (not acts or acts[-1].location.strip().lower() != loc.lower()):
+            acts.append(act)
+    return acts[:MAX_STOPS_PER_DAY]
+
+
 def day_stops(day) -> list[str]:
     """Real places of one day in visiting order; a place repeated back to back is listed once. A hotel or other
     generic stop is left out: its position is unknown, so any route to it would be an invented number."""
-    from swarm.code_agents.reality import _is_generic
-    stops: list[str] = []
-    for act in day.activities:
-        loc = act.location.strip()
-        if loc and not _is_generic(loc) and (not stops or stops[-1].lower() != loc.lower()):
-            stops.append(loc)
-    return stops[:MAX_STOPS_PER_DAY]
+    return [act.location.strip() for act in stop_activities(day)]
 
 
 def _coords(stops: list[str], req) -> list:
@@ -182,6 +188,7 @@ class Dispatcher:
     def run_workers(self, plan) -> dict:
         """plan is an approved ExpeditionPlan. Returns {"transit": [...], "outreach": [...], "summary": {...}}."""
         req = self.req
+        mode_rules = load_transit_modes(req.cost_profile)
         transit, outreach = [], []
         for day in plan.days:
             stops = day_stops(day)
@@ -196,18 +203,28 @@ class Dispatcher:
             tid = self.board.add("transit", f"route for day {day.day}", after=[self.t_verify], key=case["id"])
             transit.append(self._run("transit", case,
                                      lambda c=case: agent_transit(c["city"], c["stops"], day=c["day"],
-                                                                          drive_minutes=drive_times(c["stops"], req)),
+                                                                  drive_minutes=drive_times(c["stops"], req),
+                                                                  mode_rules=mode_rules),
                                      tid))
         for i, target in enumerate(req.outreach, 1):
             case = {"id": f"o{i:02d}", "city": req.city, **req.team.model_dump(), **target.model_dump()}
             outreach.append(self._run("outreach", case, lambda c=case: agent_outreach(c),
                                       self.board.key_id(case["id"])))
 
+        set_modes = 0  # Transit owns the transport mode: write it into the plan, so plan and routes agree
+        for t in transit:
+            if t["ok"]:
+                day = next(d for d in plan.days if d.day == t["case"]["day"])
+                set_modes += write_modes_into_plan(plan, t["case"]["day"], stop_activities(day), t["result"]["legs"],
+                                                   mode_rules)
+        if set_modes:
+            self.record.note("dispatcher", f"transit modes written into the plan for {set_modes} visit(s)")
         legs = [leg for t in transit if t["ok"] for leg in t["result"]["legs"]]
         summary = {
             "transit_days": len(transit), "transit_ok": sum(t["ok"] for t in transit),
             "transit_minutes": sum(l["minutes"] for l in legs), "transit_cost_eur": round(sum(l["cost_eur"] for l in legs), 2),
             "outreach_emails": len(outreach), "outreach_ok": sum(o["ok"] for o in outreach),
+            "transit_modes_set": set_modes,
         }
         self.printer(f"  [DISPATCHER] transit {summary['transit_ok']}/{summary['transit_days']} days, "
                      f"outreach {summary['outreach_ok']}/{summary['outreach_emails']} emails")
