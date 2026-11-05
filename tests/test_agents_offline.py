@@ -195,6 +195,8 @@ def test_place_must_be_in_the_region_of_the_trip():
     assert geo.km_outside((22.54, 114.05), sz) is None
     assert geo.km_outside((60.17, 24.94), sz) > 7000, "Helsinki is far from Shenzhen"
     assert geo.km_outside((60.17, 24.94), {}) is None and geo.load_geo("nowhere") == {}
+    wrong = load_scenario("shenzhen_wrong_place")  # the shipped test scenario holds Helsinki
+    assert "Helsinki" in wrong.must_visit and "Helsinki" not in load_scenario("shenzhen_3day").must_visit
     req = load_scenario("shenzhen_3day").model_copy(update={"must_visit": ["DJI", "Helsinki"]})
     calls = []
     def fake(name, **kw):

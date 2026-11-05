@@ -1,0 +1,21 @@
+{
+  "destination": "Shenzhen, China",
+  "days": 3,
+  "budget_eur": 1200,
+  "comfort": "budget",
+  "must_visit": [
+    "DJI",
+    "HAX",
+    "Huaqiangbei",
+    "Helsinki"
+  ],
+  "optional_places": [
+    "Southern University of Science and Technology",
+    "Shenzhen University"
+  ],
+  "interests": "robotics, drones, hardware startups",
+  "outreach": [],
+  "notes": "Test scenario: Helsinki is not in Shenzhen. The plausibility gate must stop this run (needs internet; run: python -m swarm.code_agents.plausibility shenzhen_wrong_place).",
+  "search_region": "Shenzhen, China",
+  "place_search_names": {}
+}

@@ -47,6 +47,10 @@ cheapest realistic trip. They are assumptions and must be cited as such.
 trip, or more must-visit places than days can hold. Warning: tight budget, or a place not found on
 OpenStreetMap. `python -m swarm.code_agents.plausibility <scenario>` shows this without running a model.
 - *Q: Why stop early?* A model cannot fix an impossible request; it only wastes time or invents things.
+- v0.9.8: the budget is per person (`group_size`; `budget_eur` is the group's ceiling), and a place must lie within `radius_km` of the city centre in `data/geo/<city>.json` (`geo.py`). A name not found in the region is looked up once without it, so Helsinki for a Shenzhen trip is caught.
+
+**`meal_times.py`** and **`data/culture/<city>.json`**: breakfast, lunch and dinner windows (placeholder hours, to be confirmed with the supervisor). Code trims visits that run into a window before Finance runs; Justice reports what is left as a soft note; the Finance meals row sits in the lunch window.
+**`transit_modes.py`** and **`data/transit/<city>.json`**: the modes that exist in a city. The Transit agent must choose one (code rejects others, such as BART in Shenzhen), and the Dispatcher writes the chosen mode into the plan.
 
 ## 2. The loop (`run_loop.py`; the model calls are in `swarm/llm_agents/`, `client.py` talks to Ollama)
 **`call_structured_llm`**: sends a prompt to Ollama and demands JSON that matches a Pydantic schema.
