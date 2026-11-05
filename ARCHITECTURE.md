@@ -63,8 +63,9 @@ code. This is also the answer to "why not more agents?" in the defence.
 
 ## 4. The contract between stages: requirements
 
-`requirements.json` (schema to be written in `requirements_schema.py`). The Auditor and the loop
-read these values instead of the constants `MAX_BUDGET_EUR`, `REQUIRED_HUBS` and `EXPECTED_DAYS`:
+`requirements_schema.py` (**BUILT**). The loop, Planner and Auditor read these values; the old constants
+`MAX_BUDGET_EUR`, `REQUIRED_HUBS` and `EXPECTED_DAYS` are gone. A saved scenario lives in
+`scenarios/<name>.json` and every run copies it to `outputs/<run>/requirements.json`:
 
 - `destination` (city, country)
 - `days`
@@ -106,8 +107,8 @@ Borrowed ideas and their status are listed in `THIRD_PARTY.md`.
 
 ## 7. Build order (smallest useful steps first)
 
-1. Requirements schema, `scenarios/shenzhen_3day.json`, and the loop reading them instead of
-   constants. (Unblocks the benchmark.)
+1. ~~Requirements schema, `scenarios/shenzhen_3day.json`, and the loop reading them instead of
+   constants.~~ **DONE.** (Unblocks the benchmark.)
 2. Plausibility check in the Auditor, replacing the fixed cost minimums.
 3. Intake agent (fixed question list, model rephrases and extracts answers).
 4. Connect Outreach and Transit to the loop through the Coordinator.

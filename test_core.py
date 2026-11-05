@@ -149,6 +149,34 @@ def test_version_info():
     assert vi.rules_hash(root) != h1  # a prompt change changes the hash
 
 
+def test_requirements_schema():
+    import json
+    import tempfile
+    from pathlib import Path
+    from requirements_schema import Requirements, load_scenario
+    req = load_scenario("shenzhen_3day")
+    assert req.days == 3 and req.budget_eur == 1200 and req.must_visit == ["DJI", "HAX", "Huaqiangbei"]
+    assert req.city == "Shenzhen" and "1200 EUR" in req.request_text() and "DJI" in req.request_text()
+    base = req.model_dump()
+    d = Path(tempfile.mkdtemp())
+    for label, change in [("zero budget", {"budget_eur": 0}), ("no hubs", {"must_visit": []}),
+                          ("duplicate hub", {"must_visit": ["DJI", "dji"]}), ("too many days", {"days": 40})]:
+        (d / "bad.json").write_text(json.dumps({**base, **change}), encoding="utf-8")
+        try:
+            load_scenario(d / "bad.json")
+        except ValueError as e:
+            assert "invalid scenario" in str(e), label
+        else:
+            raise AssertionError(f"{label} must be rejected")
+    try:
+        load_scenario("no_such_scenario")
+    except ValueError as e:
+        assert "cannot read" in str(e)
+    else:
+        raise AssertionError("missing scenario must be rejected")
+    assert Requirements.model_validate(base) == req
+
+
 def test_state_table_consistent():
     """Idea from Edict's CI guard for its state tables: the table must stay complete and coherent."""
     from state_machine import Status, VALID_TRANSITIONS

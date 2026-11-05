@@ -5,6 +5,7 @@ from handoff import handoff
 from soul_loader import build_system_prompt
 from skills import run_skill
 from reality import reality_check, cost_guide_text
+from requirements_schema import Requirements, load_scenario
 from version_info import version_info, version_line
 import csv
 import json
@@ -97,15 +98,11 @@ def _read_model_file(path=None):
 # then model.txt, then the built-in default.
 MODEL_NAME = os.environ.get("SWARM_MODEL") or _read_model_file() or "qwen3:8b"
 
-MAX_BUDGET_EUR = 1200.0
-REQUIRED_HUBS = ["DJI", "HAX", "Huaqiangbei"]
-EXPECTED_DAYS = 3
 
-
-def _missing_hubs(plan: ExpeditionPlan) -> list[str]:
+def _missing_hubs(plan: ExpeditionPlan, required_hubs: list[str]) -> list[str]:
     """Mandatory hubs that no activity actually takes place at (checked on 'location')."""
     locations = " | ".join(act.location for day in plan.days for act in day.activities).lower()
-    return [h for h in REQUIRED_HUBS if h.lower() not in locations]
+    return [h for h in required_hubs if h.lower() not in locations]
 
 
 def _normalize_plan(plan: ExpeditionPlan, record: TaskRecord) -> ExpeditionPlan:
@@ -224,15 +221,15 @@ def _report_llm_stats(record: TaskRecord) -> None:
 # (persona and rules live in agents/tech_planner/SOUL.md)
 # ==========================================
 def agent_tech_planner(
-    user_request: str,
+    req: Requirements,
     previous_plan: RoughItinerary = None,
     critique_feedback: list[str] = None,
 ) -> RoughItinerary:
     print("  [Agent 1: Tech Planner] Designing high-level technical itinerary...")
     system_prompt = build_system_prompt("tech_planner")
     user_prompt = (
-        f"User Request: {user_request}\n"
-        f"Mandatory hubs (each one must be visited; use these exact names): {', '.join(REQUIRED_HUBS)}\n"
+        f"User Request: {req.request_text()}\n"
+        f"Mandatory hubs (each one must be visited; use these exact names): {', '.join(req.must_visit)}\n"
     )
 
     if previous_plan and critique_feedback:
@@ -336,18 +333,18 @@ def is_soft_note(note: str) -> bool:
 VERIFY_LOG: list = []  # online checks of the latest audit, saved into the run history
 
 
-def agent_auditor(plan: ExpeditionPlan) -> AuditResult:
+def agent_auditor(plan: ExpeditionPlan, req: Requirements) -> AuditResult:
     print("  [Agent 3: Auditor Agent] Evaluating feasibility and routing feedback...")
 
     # --- Skill: budget_check ---
     all_costs = [act.cost_eur for day in plan.days for act in day.activities]
-    budget = run_skill("budget_check", costs=all_costs, cap=MAX_BUDGET_EUR)["result"]
+    budget = run_skill("budget_check", costs=all_costs, cap=req.budget_eur)["result"]
     actual_sum = budget["total"]
 
     # --- Skill: schedule_check (per day) ---
     schedule_issues = []
-    if len(plan.days) != EXPECTED_DAYS:
-        schedule_issues.append(f"Plan has {len(plan.days)} day(s) but {EXPECTED_DAYS} are required.")
+    if len(plan.days) != req.days:
+        schedule_issues.append(f"Plan has {len(plan.days)} day(s) but {req.days} are required.")
     for day in plan.days:
         if not day.activities:
             schedule_issues.append(f"Day {day.day}: no activities planned. Every day needs at least one activity.")
@@ -358,17 +355,17 @@ def agent_auditor(plan: ExpeditionPlan) -> AuditResult:
         elif not res["result"]["ok"]:
             schedule_issues.extend(f"Day {day.day}: {issue}" for issue in res["result"]["issues"])
 
-    missing_hubs = _missing_hubs(plan)
+    missing_hubs = _missing_hubs(plan, req.must_visit)
 
     # --- Reality checks (internet skills): real places, possible travel times, plausible costs ---
-    reality = reality_check(plan, REQUIRED_HUBS)
+    reality = reality_check(plan, req.must_visit)
     VERIFY_LOG[:] = reality["log"]
     for item in reality["log"]:
         print(f"  [Verify] {item['check']}: {item['name']} -> found={item['found']} ({item['source']}) {item['detail']}")
 
     system_prompt = build_system_prompt("auditor")
     user_prompt = (
-        f"Max Allowed Budget: {MAX_BUDGET_EUR} EUR\n"
+        f"Max Allowed Budget: {req.budget_eur:g} EUR\n"
         f"Actual Summed Cost: {actual_sum:.2f} EUR\n"
         f"Currently Missing Hubs: {missing_hubs}\n"
         f"Schedule Problems: {schedule_issues or 'none'}\n"
@@ -394,7 +391,7 @@ def agent_auditor(plan: ExpeditionPlan) -> AuditResult:
         audit.critique_notes.extend(reality["logistics_issues"])
         if not budget["within_budget"]:
             audit.critique_notes.append(
-                f"Budget exceeded: {actual_sum:.2f} EUR > {MAX_BUDGET_EUR} EUR. Reduce activity or transit costs."
+                f"Budget exceeded: {actual_sum:.2f} EUR > {req.budget_eur:g} EUR. Reduce activity or transit costs."
             )
         audit.critique_notes.extend(schedule_issues)
 
@@ -409,6 +406,7 @@ def apply_fault_injection(
     detailed_plan: ExpeditionPlan,
     iteration: int,
     inject_mode: str = None,
+    required_hubs: list[str] = (),
 ) -> ExpeditionPlan:
     """
     Artificially injects controlled faults into the state object to test
@@ -426,7 +424,7 @@ def apply_fault_injection(
 
     # Test 2: Force a budget overrun on Iteration 1 -> Should skip Agent 1 & route to LOGISTICS
     if inject_mode == "budget_spike" and iteration == 1:
-        if _missing_hubs(detailed_plan):
+        if _missing_hubs(detailed_plan, required_hubs):
             print("  [FAULT SKIPPED] Base plan already invalid - not isolating budget fault.")
             return detailed_plan  # let organic failure dominate; don't pretend to test budget
         detailed_plan = detailed_plan.model_copy(deep=True)
@@ -457,20 +455,22 @@ def _fail(record: TaskRecord, note: str) -> None:
 SAVE_OUTPUTS = os.environ.get("SWARM_SAVE_OUTPUTS", "1") != "0"
 
 
-def _save_outputs(request, mode, status, iterations, plan, record, warnings=None):
+def _save_outputs(req, mode, status, iterations, plan, record, warnings=None):
     """Write plan.md/plan.json/history.md under outputs/<run>/. Never lets saving break a run."""
     if not SAVE_OUTPUTS:
         return
     try:
         import output_writer
-        d = output_writer.write_swarm_run(request, mode or "none", MODEL_NAME, _gpu_name(), status,
-                                          iterations, plan, record.log_path, warnings=warnings)
+        d = output_writer.write_swarm_run(req.request_text(), mode or "none", MODEL_NAME, _gpu_name(), status,
+                                          iterations, plan, record.log_path, warnings=warnings,
+                                          requirements=req.model_dump())
         print(f"[OUTPUT] Readable results saved: {d / 'index.md'}")
     except Exception as e:
         print(f"[OUTPUT] Could not save readable results: {type(e).__name__}: {e}")
 
 
-def run_swarm_loop(request: str, max_iterations: int = 6, inject_mode: str = None):
+def run_swarm_loop(req: Requirements, max_iterations: int = 6, inject_mode: str = None):
+    request = req.request_text()
     start_time = time.time()
     schema_errors = 0
     iterations_used = 0
@@ -514,21 +514,21 @@ def run_swarm_loop(request: str, max_iterations: int = 6, inject_mode: str = Non
 
                 if run_planner:
                     _move(record, Status.PLANNING, "tech_planner")
-                    rough_plan = agent_tech_planner(request, rough_plan, critique_feedback)
+                    rough_plan = agent_tech_planner(req, rough_plan, critique_feedback)
                     handoff(record, "tech_planner", "logistics",
                             f"rough itinerary, {len(rough_plan.days)} day(s)")
                     _move(record, Status.SCHEDULING, "logistics")
-                    detailed_plan = agent_logistics_specialist(rough_plan, MAX_BUDGET_EUR, record=record)
+                    detailed_plan = agent_logistics_specialist(rough_plan, req.budget_eur, record=record)
                     logistics_retries = 0
                 else:
                     _move(record, Status.SCHEDULING, "logistics")
                     print(f"  [Router] Skipping Agent 1 -> Direct fix in Agent 2 (Attempt {logistics_retries})...")
                     detailed_plan = agent_logistics_specialist(
-                        rough_plan, MAX_BUDGET_EUR, detailed_plan, critique_feedback, record=record,
+                        rough_plan, req.budget_eur, detailed_plan, critique_feedback, record=record,
                         temperature=0.7  # a direct fix needs variety, or the model repeats its draft
                     )
 
-                detailed_plan = apply_fault_injection(detailed_plan, iteration, inject_mode)
+                detailed_plan = apply_fault_injection(detailed_plan, iteration, inject_mode, req.must_visit)
                 detailed_plan = _normalize_plan(detailed_plan, record)
 
                 total_cost = sum(act.cost_eur for day in detailed_plan.days for act in day.activities)
@@ -537,7 +537,7 @@ def run_swarm_loop(request: str, max_iterations: int = 6, inject_mode: str = Non
                 handoff(record, "logistics", "auditor",
                         f"{len(detailed_plan.days)} day(s), {total_cost:.2f} EUR")
                 _move(record, Status.REVIEWING, "auditor")
-                audit = agent_auditor(detailed_plan)
+                audit = agent_auditor(detailed_plan, req)
                 retrying = False
                 iterations_log.append({
                     "iteration": iteration, "planner_ran": run_planner, "total_cost": total_cost,
@@ -630,15 +630,18 @@ def run_swarm_loop(request: str, max_iterations: int = 6, inject_mode: str = Non
 
     finally:
         _report_llm_stats(record)
-        _save_outputs(request, inject_mode, final_status, iterations_log, final_plan, record, warnings)
+        _save_outputs(req, inject_mode, final_status, iterations_log, final_plan, record, warnings)
 
 
 if __name__ == "__main__":
-    test_request = (
-        "Organize a 3-day robotics expedition to Shenzhen. "
-        "Strict budget ceiling is 1200 EUR."
-    )
+    import argparse
+    parser = argparse.ArgumentParser(description="Run the expedition swarm on a saved scenario.")
+    parser.add_argument("--scenario", default="shenzhen_3day", help="name in scenarios/ or a path to a .json file")
+    parser.add_argument("--modes", nargs="*", default=["none", "missing_hub", "budget_spike", "saturation_escalation"],
+                        help="fault-injection modes to run ('none' = a normal run)")
+    args = parser.parse_args()
+    scenario = load_scenario(args.scenario)
 
-    for mode in [None, "missing_hub", "budget_spike", "saturation_escalation"]:
+    for mode in args.modes:
         print(f"\n\n########## RUNNING MODE: {mode} ##########")
-        run_swarm_loop(test_request, max_iterations=6, inject_mode=mode)
+        run_swarm_loop(scenario, max_iterations=6, inject_mode=None if mode == "none" else mode)

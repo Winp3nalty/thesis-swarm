@@ -5,6 +5,7 @@ It also works as a demo: it shows every fault mode being caught and corrected.
 Run:  python test_loop_offline.py
 Needs pydantic installed (the setup.ps1 venv has it).
 """
+from requirements_schema import load_scenario
 import json
 import os
 import tempfile
@@ -55,7 +56,7 @@ def main():
     os.chdir(tempfile.mkdtemp())  # keep results.csv and logs/ out of the project
     os.environ["SWARM_OFFLINE"] = "1"  # tests never touch the network
 
-    request = "3-day Shenzhen robotics expedition, budget 1200 EUR"
+    request = load_scenario("shenzhen_3day")
     P, S, R, C = "planning", "scheduling", "reviewing", "completed"
 
     expectations = {
@@ -327,7 +328,7 @@ def main():
         return out
 
     run_loop.call_structured_llm = cheap_llm
-    res = run_loop.run_swarm_loop("3-day Shenzhen trip", max_iterations=6)
+    res = run_loop.run_swarm_loop(load_scenario("shenzhen_3day"), max_iterations=6)
     assert res is not None, "soft-only rejections must end in approval with warnings"
     rows = Path("results.csv").read_text().splitlines()
     assert rows[-1].split(",")[4] == "SUCCESS_WITH_WARNINGS" and rows[-1].split(",")[3] == "3", rows[-1]
@@ -342,7 +343,7 @@ def main():
         return out
 
     run_loop.call_structured_llm = hubless_llm
-    assert run_loop.run_swarm_loop("3-day Shenzhen trip", max_iterations=4) is None, "hard problems are never waived"
+    assert run_loop.run_swarm_loop(load_scenario("shenzhen_3day"), max_iterations=4) is None, "hard problems are never waived"
     print("[OK] soft-only rejections end as SUCCESS_WITH_WARNINGS after 3 rounds; hard problems are not waived")
     print("\nAll offline loop tests passed.")
 

@@ -104,10 +104,12 @@ def render_iterations_md(iterations: list[dict]) -> str:
 
 
 def write_swarm_run(request, mode, model, gpu, status, iterations, final_plan, audit_log, root=None,
-                    warnings=None) -> Path:
+                    warnings=None, requirements=None) -> Path:
     d = new_run_dir("swarm", model, label=mode, root=root)
     write_text(d / "history.md", render_iterations_md(iterations))
     write_json(d / "history.json", iterations)
+    if requirements:
+        write_json(d / "requirements.json", requirements)
     from version_info import version_info, version_line
     write_json(d / "run.json", {"request": request, "fault_mode": mode, "model": model, "gpu": gpu,
                                 "status": status, "iterations": len(iterations), **version_info()})
@@ -127,7 +129,10 @@ def write_swarm_run(request, mode, model, gpu, status, iterations, final_plan, a
         index.append("- No plan was approved in this run.")
     index += ["- [history.md](history.md): every draft and the Auditor's verdict",
               "- [history.json](history.json): the same data for scripts",
-              "- [run.json](run.json): settings and version of this run", ""]
+              "- [run.json](run.json): settings and version of this run"]
+    if requirements:
+        index.append("- [requirements.json](requirements.json): the scenario this run used")
+    index.append("")
     write_text(d / "index.md", "\n".join(index))
     return d
 

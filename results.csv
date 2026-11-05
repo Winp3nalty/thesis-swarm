@@ -1,0 +1,12 @@
+timestamp,model,inject_mode,iterations,status,wall_clock_s,schema_errors,gpu_name,prompt_tokens,completion_tokens,llm_seconds,version,git_commit,rules_hash
+2026-11-04T14:13:12,qwen3:8b,none,6,ABORTED_MAX_ITER,85.32,0,NVIDIA GeForce RTX 5070,16249,5979,85.3,v0.4-reality-checks,47892d7-dirty,777d6cc1
+2026-11-04T14:14:37,qwen3:8b,missing_hub,6,ABORTED_MAX_ITER,85.62,0,NVIDIA GeForce RTX 5070,15839,6009,85.6,v0.4-reality-checks,47892d7-dirty,777d6cc1
+2026-11-04T14:18:28,qwen3:8b,none,6,ABORTED_MAX_ITER,77.98,0,NVIDIA GeForce RTX 5070,15378,5448,78.0,v0.4-reality-checks,47892d7-dirty,777d6cc1
+2026-11-04T15:16:21,qwen3:8b,none,4,SUCCESS_WITH_WARNINGS,70.28,0,NVIDIA GeForce RTX 5070,11385,4425,70.3,v0.5-edict-review,47892d7-dirty,6837c8da
+2026-11-04T15:17:14,qwen3:8b,missing_hub,4,SUCCESS_WITH_WARNINGS,53.30,0,NVIDIA GeForce RTX 5070,9464,3450,53.2,v0.5-edict-review,47892d7-dirty,6837c8da
+2026-11-04T15:18:14,qwen3:8b,budget_spike,4,SUCCESS_WITH_WARNINGS,60.08,0,NVIDIA GeForce RTX 5070,11702,4325,60.0,v0.5-edict-review,47892d7-dirty,6837c8da
+2026-11-04T15:19:21,qwen3:8b,saturation_escalation,4,SUCCESS,66.35,0,NVIDIA GeForce RTX 5070,11690,4734,66.4,v0.5-edict-review,47892d7-dirty,6837c8da
+2026-11-04T15:30:53,qwen3:8b,none,1,SUCCESS,19.79,0,NVIDIA GeForce RTX 5070,2406,1207,19.7,v0.6-requirements,1a2279b-dirty,6837c8da
+2026-11-04T15:32:32,qwen3:8b,missing_hub,4,SUCCESS_WITH_WARNINGS,99.11,0,NVIDIA GeForce RTX 5070,12290,5096,99.0,v0.6-requirements,1a2279b-dirty,6837c8da
+2026-11-04T15:35:10,qwen3:8b,budget_spike,4,SUCCESS_WITH_WARNINGS,157.87,0,NVIDIA GeForce RTX 5070,10940,3848,157.8,v0.6-requirements,1a2279b-dirty,6837c8da
+2026-11-04T15:39:26,qwen3:8b,saturation_escalation,4,SUCCESS,256.38,0,NVIDIA GeForce RTX 5070,10986,4181,256.4,v0.6-requirements,1a2279b-dirty,6837c8da

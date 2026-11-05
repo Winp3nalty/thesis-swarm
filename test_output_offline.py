@@ -1,4 +1,5 @@
 """Offline tests for readable output saving. Run: python test_output_offline.py"""
+from requirements_schema import load_scenario
 import json
 import tempfile
 from pathlib import Path
@@ -16,7 +17,7 @@ def test_swarm_outputs():
     os.environ["SWARM_OFFLINE"] = "1"
     run_loop.call_structured_llm = tl.fake_llm
     run_loop.SAVE_OUTPUTS = True
-    assert run_loop.run_swarm_loop("3-day Shenzhen trip", inject_mode="missing_hub") is not None
+    assert run_loop.run_swarm_loop(load_scenario("shenzhen_3day"), inject_mode="missing_hub") is not None
     runs = list(Path("outputs").iterdir())
     assert len(runs) == 1, runs
     names = {p.name for p in runs[0].iterdir()}
