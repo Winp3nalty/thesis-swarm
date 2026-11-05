@@ -131,3 +131,9 @@ Borrowed ideas and their status are listed in `THIRD_PARTY.md`.
 - Which scenario fields does the supervisor want fixed for the benchmark?
 - Should an implausible request be blocked, or only warned about?
 - How many repeated runs per scenario will the benchmark use?
+
+## v0.8.4: rules the model kept breaking move into code
+
+- Overnight rows: `plan_quality.fix_overnight_times` sets the "Overnight stay" row to 20:00-23:59 after the Logistics agent answers (only when every other row ends by 20:00). The change is logged as a pipeline note. The soft check stays as a safety net.
+- Missing nights: `quality_check` reports days (except the last) without an overnight stay (soft note).
+- Outreach: invented-claim phrases are matched as whole words ("your research" is not "our research"); the retry after a too-short body shows the previous text.

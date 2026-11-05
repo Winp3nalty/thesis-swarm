@@ -186,6 +186,24 @@ def test_outreach_rejects_invented_claims():
     assert workers.validate_outreach(clean, contact) == []
 
 
+def test_invented_claim_check_uses_whole_words():
+    contact = {"name": "Prof. Liang Haotian", "institution": "Shenzhen University", "topics": ["drone swarm"],
+               "city": "Shenzhen"}
+    body = ("Your research on drone swarm coordination at Shenzhen University and your work on sensing are admired. "
+            + " ".join(["word"] * 100) + " We ask for a 30-minute lab tour.")
+    email = OutreachEmail(subject="Lab tour request", greeting="Dear Prof. Liang Haotian,", body=body, sign_off="Sincerely")
+    assert not any("do not claim" in p for p in workers.validate_outreach(email, contact))
+    mine = email.model_copy(update={"body": body.replace("Your research", "Our research")})
+    assert any("our research" in p for p in workers.validate_outreach(mine, contact))
+    # a too-short body: the retry shows the previous text so the model can extend it
+    try:
+        OutreachEmail(subject="Lab tour request", greeting="Dear X,", body="a short text of only a few words but over forty characters", sign_off="Bye")
+    except Exception as e:
+        fb = workers._retry_feedback(e)
+        assert "a short text of only" in fb and "ADD about" in fb, fb
+    print("[OK] whole-word claim check; retry feedback shows the previous body")
+
+
 def test_outreach_validator_rules():
     c = CASES["outreach"][2]  # SUSTech case, uses an alias
     good = good_llm("", f"Institution: {c['institution']}\nProfessor: {c['name']}\n"

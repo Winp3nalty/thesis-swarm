@@ -44,10 +44,12 @@ def _retry_feedback(err: Exception) -> str:
     if m:
         n = int(m.group(1))
         if n < 120:
+            _, previous = _describe_schema_error(err)
+            shown = f"\nYour previous body (extend it, keep what is good):\n{previous}\n" if previous else ""
             return (f"\n\nYOUR PREVIOUS ANSWER WAS REJECTED: the body had only {n} words, "
                     f"but it needs at least 140. Rewrite the whole body and ADD about {150 - n} more words: "
                     "expand the paragraph about the professor's research and the paragraph with the request. "
-                    "Do not repeat your previous text.")
+                    "Do not repeat your previous text." + shown)
         return (f"\n\nYOUR PREVIOUS ANSWER WAS REJECTED: the body had {n} words, but it must have at most 180. "
                 "Shorten it to about 160 words.")
     return (f"\n\nYOUR PREVIOUS ANSWER WAS REJECTED: {str(err)[:600]}\n"
@@ -176,7 +178,8 @@ def validate_outreach(email: OutreachEmail, contact: dict) -> list[str]:
     univ = contact.get("sender_university", "").strip()
     if univ and not any(w in body for w in (_key_words(univ, _GENERIC_WORDS) or {_norm(univ)})):
         problems.append(f"the body must say that the group comes from '{univ}'")
-    claims = [p for p in INVENTED_CLAIM_PHRASES if p in body]
+    # whole words only: "your research" must not match "our research"
+    claims = [p for p in INVENTED_CLAIM_PHRASES if re.search(rf"\b{re.escape(p)}\b", body)]
     if claims:
         problems.append(f"do not claim any project or result of the student group (found '{claims[0]}'); "
                         "say only that the students are visiting and want to learn")

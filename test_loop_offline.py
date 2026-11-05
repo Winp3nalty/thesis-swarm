@@ -40,7 +40,9 @@ def fake_llm(system_prompt, user_prompt, response_model, temperature=0.2):
                  "activity_description": f"Visit {h}", "transit_mode": "Metro", "cost_eur": 100.0},
                 {"start_time": "13:00", "end_time": "16:00", "location": h,
                  "activity_description": f"Workshop at {h}", "transit_mode": "Walk", "cost_eur": 100.0},
-            ]} for i, h in enumerate(HUBS)],
+            ] + ([{"start_time": "20:00", "end_time": "23:00", "location": "Hotel",
+                   "activity_description": "Overnight stay", "transit_mode": "none", "cost_eur": 0.0}]
+                 if i < len(HUBS) - 1 else [])} for i, h in enumerate(HUBS)],
         })
     if response_model is AuditResult:
         return AuditResult(passed=True, failed_agent="none", critique_notes=[])
@@ -348,7 +350,19 @@ def main():
     day[1]["start_time"], day[1]["end_time"] = "21:00", "23:00"
     q2 = plan_quality.quality_check(plan_with([day]), lambda n: n == "Hotel", 1, 40.0)
     assert not any("Overnight" in n for n in q2["logistics_issues"]), q2
-    print("[OK] Planner told the slot count and unused places; afternoon overnight rows are flagged")
+    # Code, not the model, fixes the overnight time; a missing night is reported.
+    day = [act("09:00", "11:00", "DJI"), {**act("14:00", "16:00", "Hotel", "Overnight stay", 40.0)}]
+    p1 = plan_with([day, [act("09:00", "11:00", "HAX")]])
+    notes = plan_quality.fix_overnight_times(p1)
+    assert len(notes) == 1 and p1.days[0].activities[1].start_time == "20:00" and p1.days[0].activities[1].end_time == "23:59", notes
+    from skills import run_skill
+    assert run_skill("schedule_check", activities=[a.model_dump() for a in p1.days[0].activities])["result"]["ok"]
+    late = [act("18:00", "22:00", "Night Market"), {**act("17:00", "18:00", "Hotel", "Overnight stay", 40.0)}]
+    assert plan_quality.fix_overnight_times(plan_with([late, [act("09:00", "11:00", "HAX")]])) == []  # visit runs late: untouched
+    q3 = plan_quality.quality_check(plan_with([[act("09:00", "11:00", "DJI")], [act("09:00", "11:00", "HAX")]]),
+                                    lambda n: n == "Hotel", 1, 40.0)
+    assert any("Day(s) 1 has no overnight stay" in n and run_loop.is_soft_note(n) for n in q3["logistics_issues"]), q3
+    print("[OK] Planner told the slot count and unused places; overnight rows fixed by code, missing nights reported")
     # A place the Planner chose and the map does not know goes back to the Planner; one only Logistics wrote stays.
     rough = RoughItinerary.model_validate({"destination": "Shenzhen", "days": [
         {"day": 1, "focus_topic": "x", "target_hubs": [{"hub_name": "Ghost Lab", "purpose": "p"}]}]})

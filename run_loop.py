@@ -9,7 +9,7 @@ from handoff import handoff
 from soul_loader import build_system_prompt
 from skills import run_skill, reset_call_log, skills_summary
 from reality import reality_check, cost_guide_text, load_cost_reference, _is_generic
-from plan_quality import quality_check, SOFT_MARKERS
+from plan_quality import quality_check, fix_overnight_times, SOFT_MARKERS
 from plausibility import plausibility_check
 from coordinator import run_coordinator
 from requirements_schema import Requirements, load_scenario
@@ -630,6 +630,8 @@ def run_swarm_loop(req: Requirements, max_iterations: int = 6, inject_mode: str 
 
                 detailed_plan = apply_fault_injection(detailed_plan, iteration, inject_mode, req.must_visit)
                 detailed_plan = _normalize_plan(detailed_plan, record)
+                for note in fix_overnight_times(detailed_plan):
+                    record.note("pipeline", note)
 
                 total_cost = sum(act.cost_eur for day in detailed_plan.days for act in day.activities)
                 print(f"  [Pipeline Output] Generated {len(detailed_plan.days)} days | Summed Cost: {total_cost:.2f} EUR")
