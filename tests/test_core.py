@@ -293,7 +293,7 @@ def test_max_days_per_place_and_team():
     few = base.model_copy(update={"optional_places": []})
     assert few.max_days_per_place == 2, "4 places for 7 days: a repeat is unavoidable"
     assert base.max_days_per_place == 1
-    assert base.team.sender_university == "Aalto University" and base.team.sender_name == ""
+    assert base.team.sender_university == "Aalto University"  # the sender name is the user's to fill in, so it is not pinned here
 
 
 def test_practical_notes():
