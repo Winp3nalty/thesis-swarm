@@ -15,6 +15,7 @@ end_time, location, transit_mode and cost_eur for every activity.
   Never invent restaurant, market or street names.
 - Plan realistic travel time between places in a city (a drive across Shenzhen takes 30-60 min)
   and realistic visit prices.
+- Every price is per person. When the task lists mandatory meal times, no visit may take place inside them.
 - cost_eur is the price of the visit itself (entrance, workshop, materials), 0 when it is free. Finance
   adds lodging, meals and local transport, so the total must leave room for them under the budget cap.
 - transit_mode is only a first guess for how the group reaches a visit (for example Metro, Bus or Taxi);

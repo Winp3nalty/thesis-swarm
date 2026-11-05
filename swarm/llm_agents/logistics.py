@@ -4,6 +4,7 @@ prompts/logistics/SOUL.md). Hotel, meals and local transport are not its job; Fi
 """
 from __future__ import annotations
 
+from swarm.code_agents.meal_times import meal_prompt_text
 from swarm.code_agents.reality import cost_guide_text
 from swarm.core.schemas import ExpeditionPlan, RoughItinerary
 from swarm.core.soul_loader import build_system_prompt
@@ -46,15 +47,17 @@ def agent_logistics_specialist(
     record: TaskRecord = None,
     temperature: float = 0.2,
     cost_ref: dict = None,
+    meals: dict = None,
 ) -> ExpeditionPlan:
     print("  [Agent 2: Logistics Specialist] Enforcing time slots, transit, and EUR costs...")
     system_prompt = build_system_prompt(
         "logistics",
-        extra=f"Keep total costs strictly under {budget_cap} EUR.",
+        extra=f"Keep total costs strictly under {budget_cap:g} EUR per person.",
     )
     user_prompt = f"Rough Outline to Follow:\n{rough_plan.model_dump_json(indent=2)}\n"
     user_prompt += _exchange_rate_context(record)
     user_prompt += cost_guide_text(len(rough_plan.days), cost_ref)
+    user_prompt += meal_prompt_text(meals or {})
 
     if previous_detailed and critique_feedback:
         user_prompt += (

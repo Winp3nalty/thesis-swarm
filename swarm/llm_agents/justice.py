@@ -10,6 +10,8 @@ from __future__ import annotations
 
 import re
 
+from swarm.code_agents.geo import load_geo
+from swarm.code_agents.meal_times import load_meals, meal_problems
 from swarm.code_agents.plan_quality import quality_check
 from swarm.code_agents.reality import reality_check, load_cost_reference, _is_generic
 from swarm.core.requirements_schema import Requirements
@@ -48,7 +50,11 @@ def blame_planner_for_chosen_places(reality: dict, rough_plan: RoughItinerary, r
     keep = []
     for issue in reality["logistics_issues"]:
         m = re.match(r"Place '(.+?)' was not found on OpenStreetMap", issue)
-        if m and m.group(1).strip().lower() in chosen:
+        far = re.match(r"Place '(.+?)' is \d+ km from the centre", issue)
+        if far and far.group(1).strip().lower() in chosen:
+            reality["planner_issues"].append(issue + " Replace it with a place from the optional list or another "
+                                             "well-known venue in the city.")
+        elif m and m.group(1).strip().lower() in chosen:
             reality["planner_issues"].append(
                 f"Place '{m.group(1)}' was not found on OpenStreetMap in {req.region}. Replace it with a different "
                 "real place from the optional list or another well-known venue that exists.")
@@ -63,7 +69,7 @@ def agent_justice(plan: ExpeditionPlan, req: Requirements, rough_plan: RoughItin
 
     # --- Skill: budget_check ---
     all_costs = [act.cost_eur for day in plan.days for act in day.activities]
-    budget = run_skill("budget_check", costs=all_costs, cap=req.budget_eur)["result"]
+    budget = run_skill("budget_check", costs=all_costs, cap=req.budget_per_person)["result"]
     actual_sum = budget["total"]
 
     # --- Skill: schedule_check (per day) ---
@@ -85,8 +91,9 @@ def agent_justice(plan: ExpeditionPlan, req: Requirements, rough_plan: RoughItin
     # --- Reality checks (internet skills): real places, possible travel times, plausible costs ---
     cost_ref = load_cost_reference(req.cost_profile)
     reality = reality_check(plan, req.must_visit, req.place_search_names, req.region, cost_ref,
-                            req.place_coordinates)
+                            req.place_coordinates, load_geo(req.cost_profile), req.city)
     quality = quality_check(plan, _is_generic, req.max_days_per_place, cost_ref.get("hotel_night_eur"))
+    reality["logistics_issues"] += meal_problems(plan, load_meals(req.cost_profile))
     reality["planner_issues"] += quality["planner_issues"]
     reality["logistics_issues"] += quality["logistics_issues"]
     if rough_plan is not None:
@@ -97,7 +104,7 @@ def agent_justice(plan: ExpeditionPlan, req: Requirements, rough_plan: RoughItin
 
     system_prompt = build_system_prompt("justice")
     user_prompt = (
-        f"Max Allowed Budget: {req.budget_eur:g} EUR\n"
+        f"Max Allowed Budget: {req.budget_per_person:g} EUR" + (" per person" if req.group_size > 1 else "") + "\n"
         f"Actual Summed Cost: {actual_sum:.2f} EUR\n"
         f"Currently Missing Hubs: {missing_hubs}\n"
         f"Schedule Problems: {schedule_issues or 'none'}\n"
@@ -124,7 +131,8 @@ def agent_justice(plan: ExpeditionPlan, req: Requirements, rough_plan: RoughItin
         audit.critique_notes = list(reality["logistics_issues"])
         if not budget["within_budget"]:
             audit.critique_notes.append(
-                f"Budget exceeded: {actual_sum:.2f} EUR > {req.budget_eur:g} EUR. Reduce activity or transit costs."
+                f"Budget exceeded: {actual_sum:.2f} EUR > {req.budget_per_person:g} EUR"
+                + (" per person" if req.group_size > 1 else "") + ". Reduce activity or transit costs."
             )
         audit.critique_notes.extend(schedule_issues)
 

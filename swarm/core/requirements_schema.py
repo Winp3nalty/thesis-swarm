@@ -35,7 +35,8 @@ class TeamInfo(BaseModel):
 class Requirements(BaseModel):
     destination: str = Field(min_length=2, description="City, country, e.g. 'Shenzhen, China'")
     days: int = Field(ge=1, le=14)
-    budget_eur: float = Field(gt=0, description="Ceiling for the whole trip")
+    budget_eur: float = Field(gt=0, description="Ceiling for the whole trip and the whole group")
+    group_size: int = Field(default=1, ge=1, le=50, description="Travellers. All prices in the plan are per person")
     comfort: Literal["budget", "standard"] = "budget"
     must_visit: list[str] = Field(min_length=1, description="Each one must be a real visit")
     interests: str = ""
@@ -91,6 +92,10 @@ class Requirements(BaseModel):
         return re.sub(r"[^a-z0-9]+", "_", self.city.lower()).strip("_")
 
     @property
+    def budget_per_person(self) -> float:
+        return self.budget_eur / self.group_size
+
+    @property
     def max_days_per_place(self) -> int:
         """A place may be visited on this many days. One, whenever the must-visit and optional places are at
         least as many as the days; more only if there are fewer places than days."""
@@ -99,8 +104,13 @@ class Requirements(BaseModel):
 
     def request_text(self) -> str:
         """The request as plain text for the prompts, the audit log and the output files."""
-        text = (f"Organize a {self.days}-day tech expedition to {self.destination}. "
-                f"Strict budget ceiling is {self.budget_eur:g} EUR ({self.comfort} travel). "
+        if self.group_size > 1:
+            money = (f"Group of {self.group_size} travellers. Strict budget ceiling is {self.budget_eur:g} EUR for the "
+                     f"group, {self.budget_per_person:g} EUR per person ({self.comfort} travel). "
+                     "Every price in the plan is per person.")
+        else:
+            money = f"Strict budget ceiling is {self.budget_eur:g} EUR ({self.comfort} travel)."
+        text = (f"Organize a {self.days}-day tech expedition to {self.destination}. {money} "
                 f"Must visit: {', '.join(self.must_visit)}.")
         if self.interests:
             text += f" Interests: {self.interests}."

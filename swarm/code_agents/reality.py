@@ -17,6 +17,7 @@ import re
 from swarm.core.paths import DATA_DIR
 
 from swarm.code_agents.finance import DAILY_LOCATION
+from swarm.code_agents.geo import region_problem
 from swarm.code_agents.plan_quality import lodging_charge_days
 from swarm.skills import run_skill
 from swarm.skills.builtin import _minutes
@@ -56,7 +57,8 @@ def cost_floors(ref: dict, days: int):
 
 
 def reality_check(plan, required_hubs: list[str], search_names: dict | None = None,
-                  region: str | None = None, cost_ref: dict | None = None, known_coords: dict | None = None) -> dict:
+                  region: str | None = None, cost_ref: dict | None = None, known_coords: dict | None = None,
+                  geo: dict | None = None, city_name: str = "") -> dict:
     """Return {"planner_issues": [...], "logistics_issues": [...], "log": [...]}."""
     planner, logistics, log = [], [], []
     city = region or plan.destination
@@ -71,6 +73,9 @@ def reality_check(plan, required_hubs: list[str], search_names: dict | None = No
             coords[key] = given[key]
             log.append({"check": "place", "name": name, "found": True, "source": "scenario",
                         "detail": "coordinates given in the scenario (place_coordinates)"})
+            far = region_problem(name, coords[key], geo or {}, city_name or city)
+            if far and not _is_generic(name):
+                logistics.append(far)
         if key not in coords:
             res = run_skill("verify_place", place=aliases.get(key, name), city=city)
             r = res.get("result", {}) if res["ok"] else {"found": None, "source": "error"}
@@ -78,6 +83,9 @@ def reality_check(plan, required_hubs: list[str], search_names: dict | None = No
             found = r.get("found")
             log.append({"check": "place", "name": name, "found": found, "source": r.get("source"),
                         "detail": r.get("display_name", "")})
+            far = region_problem(name, coords[key], geo or {}, city_name or city)
+            if far and not _is_generic(name):
+                logistics.append(far)
             if found is False and key not in required and not _is_generic(name):
                 logistics.append(f"Place '{name}' was not found on OpenStreetMap in {city}. If it is a meal, put "
                                  "its cost into a visit row instead; otherwise use the real name of an existing venue.")
@@ -158,7 +166,8 @@ def cost_guide_text(num_days: int, ref: dict | None) -> str:
     if day_min is None:
         return ""
     return ("\nCost guide (Finance adds lodging, meals and local transport after you):\n"
-            "- cost_eur is the price of the visit itself only (entrance, workshop, materials); use 0 for a free visit.\n"
+            "- cost_eur is the price of the visit itself for ONE person (entrance, workshop, materials); use 0 for a free visit.\n"
+            "- Every amount is per person, not for the whole group.\n"
             "- Do NOT add Hotel rows, meal rows or transport rows, and do not put meal or hotel costs into visit rows.\n"
             f"- Finance will add {ref['hotel_night_eur']:g} EUR per night and "
             f"{ref['meals_per_day_eur'] + ref['local_transport_per_day_eur']:g} EUR per day for meals and local transport.\n"

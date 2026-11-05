@@ -20,6 +20,7 @@ from swarm.code_agents.plan_quality import fix_overnight_times, SOFT_MARKERS
 from swarm.code_agents.audit import agent_audit
 from swarm.code_agents.dispatcher import Dispatcher
 from swarm.code_agents.finance import agent_finance
+from swarm.code_agents.meal_times import fix_meal_times, load_meals
 from swarm.llm_agents import client
 from swarm.llm_agents.tech_planner import agent_tech_planner
 from swarm.llm_agents.logistics import agent_logistics_specialist
@@ -235,6 +236,7 @@ def run_swarm_loop(req: Requirements, max_iterations: int = 6, inject_mode: str 
 
     plaus = None
     cost_ref = load_cost_reference(req.cost_profile)
+    meals = load_meals(req.cost_profile)
     critique_feedback = []
     rough_plan = None
     detailed_plan = None
@@ -276,25 +278,26 @@ def run_swarm_loop(req: Requirements, max_iterations: int = 6, inject_mode: str 
                     dispatcher.give("logistics", "schedule the rough itinerary")
                     _move(record, Status.SCHEDULING, "logistics")
                     board.start(dispatcher.t_schedule)
-                    detailed_plan = agent_logistics_specialist(rough_plan, req.budget_eur, record=record,
-                        cost_ref=cost_ref)
+                    detailed_plan = agent_logistics_specialist(rough_plan, req.budget_per_person, record=record,
+                        cost_ref=cost_ref, meals=meals)
                     logistics_retries = 0
                 else:
                     _move(record, Status.SCHEDULING, "logistics")
                     print(f"  [Router] Skipping Agent 1 -> Direct fix in Agent 2 (Attempt {logistics_retries})...")
                     board.start(dispatcher.t_schedule)
                     detailed_plan = agent_logistics_specialist(
-                        rough_plan, req.budget_eur, detailed_plan, critique_feedback, record=record, cost_ref=cost_ref,
+                        rough_plan, req.budget_per_person, detailed_plan, critique_feedback, record=record, cost_ref=cost_ref,
+                        meals=meals,
                         temperature=0.7  # a direct fix needs variety, or the model repeats its draft
                     )
 
                 detailed_plan = apply_fault_injection(detailed_plan, iteration, inject_mode, req.must_visit)
                 detailed_plan = _normalize_plan(detailed_plan, record)
-                for note in fix_overnight_times(detailed_plan):
+                for note in fix_overnight_times(detailed_plan) + fix_meal_times(detailed_plan, meals):
                     record.note("pipeline", note)
                 dispatcher.give("finance", "add lodging, meals and local transport")
                 board.start(dispatcher.t_finance)
-                fin_notes = agent_finance(detailed_plan, cost_ref)
+                fin_notes = agent_finance(detailed_plan, cost_ref, meals_windows=meals)
                 board.finish(dispatcher.t_finance, True, fin_notes[0])
                 for note in fin_notes:
                     record.note("finance", note)

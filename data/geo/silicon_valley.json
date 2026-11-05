@@ -1,0 +1,5 @@
+{
+  "_note": "Where a day trip can reach. A place whose coordinates are farther than radius_km from the centre is not a place of this expedition. Edit to widen the area.",
+  "center": [37.4, -122.08],
+  "radius_km": 100
+}

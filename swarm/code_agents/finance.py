@@ -38,8 +38,8 @@ def is_visit(a) -> bool:
     return not is_lodging(a) and not is_daily(a)
 
 
-def _free_slot(acts, length: int = 30) -> tuple[str, str]:
-    """A gap of `length` minutes in the day, as close to 12:30 as possible (the meals row)."""
+def _free_slot(acts, length: int = 30, preferred: int = 750) -> tuple[str, str]:
+    """A gap of `length` minutes in the day, as close to `preferred` (default 12:30) as possible (the meals row)."""
     try:
         busy = sorted((_m(a.start_time), _m(a.end_time)) for a in acts)
     except (ValueError, IndexError):
@@ -53,11 +53,11 @@ def _free_slot(acts, length: int = 30) -> tuple[str, str]:
         gaps.append((cur, 24 * 60))
     if not gaps:
         return "00:00", _hhmm(length)
-    best = min(((min(max(gs, 750), ge - length)) for gs, ge in gaps), key=lambda s: abs(s - 750))
+    best = min(((min(max(gs, preferred), ge - length)) for gs, ge in gaps), key=lambda s: abs(s - preferred))
     return _hhmm(best), _hhmm(best + length)
 
 
-def agent_finance(plan, cost_ref: dict, printer=print) -> list[str]:
+def agent_finance(plan, cost_ref: dict, printer=print, meals_windows: dict | None = None) -> list[str]:
     """Rewrite the plan's non-visit rows in place. Returns what changed (for the audit log)."""
     notes = []
     hotel, meals, transport = (cost_ref.get("hotel_night_eur"), cost_ref.get("meals_per_day_eur"),
@@ -78,7 +78,8 @@ def agent_finance(plan, cost_ref: dict, printer=print) -> list[str]:
             what = "Hotel check-in and overnight stay" if i == 0 else "Overnight stay"
             d.activities.append(DetailedActivity(start_time="20:00", end_time="23:59", location="Hotel",
                                                  activity_description=what, transit_mode="none", cost_eur=float(hotel)))
-        start, end = _free_slot(d.activities)
+        lunch = (meals_windows or {}).get("lunch")  # the meals row sits in the lunch window when there is one
+        start, end = _free_slot(d.activities, *( (lunch[1] - lunch[0], lunch[0]) if lunch else () ))
         d.activities.append(DetailedActivity(
             start_time=start, end_time=end, location=DAILY_LOCATION,
             activity_description="Meals and local transport for the day (estimate from the price table)",
@@ -126,8 +127,11 @@ def finance_report(plan, req, cost_ref: dict, transit: list | None = None) -> di
                      "total": round(visits + lodging + daily + extra, 2)})
     total = round(sum(x["total"] for x in days), 2)
     rate = exchange_rate(cost_ref)
-    return {"days": days, "total_eur": total, "budget_eur": req.budget_eur,
-            "left_eur": round(req.budget_eur - total, 2), "within_budget": total <= req.budget_eur,
+    group = getattr(req, "group_size", 1)
+    total_group = round(total * group, 2)  # the plan's prices are per person
+    return {"days": days, "total_eur": total, "group_size": group, "total_group_eur": total_group,
+            "budget_eur": req.budget_eur,
+            "left_eur": round(req.budget_eur - total_group, 2), "within_budget": total_group <= req.budget_eur,
             "transit_checked_days": len(transit_by_day), "rate": rate,
             "total_local": round(total * rate["rate"], 0) if rate else None}
 
@@ -145,8 +149,12 @@ def finance_md(report: dict, title: str = "Cost report (Finance)") -> str:
         if ccy:
             row.append(f"{x['total'] * rate['rate']:.0f}")
         lines.append("| " + " | ".join(row) + " |")
-    lines += ["", f"- **Total:** {report['total_eur']:.2f} EUR"
-              + (f" (about {report['total_local']:.0f} {ccy})" if ccy else "")
+    group = report.get("group_size", 1)
+    per_person = f"{report['total_eur']:.2f} EUR per person, {group} travellers = {report['total_group_eur']:.2f} EUR" \
+        if group > 1 else f"{report['total_eur']:.2f} EUR"
+    lines += ["", f"- **Total:** {per_person}"
+              + (f" (about {report['total_local']:.0f} {ccy} per person)" if ccy and group > 1 else
+                 f" (about {report['total_local']:.0f} {ccy})" if ccy else "")
               + f", budget {report['budget_eur']:g} EUR, "
               + (f"{report['left_eur']:.2f} EUR left" if report["within_budget"] else f"OVER by {-report['left_eur']:.2f} EUR"),
               "- Meals and local transport are allowances from the city price table (data/cost/), not measured prices.",

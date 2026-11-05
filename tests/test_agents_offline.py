@@ -162,6 +162,103 @@ def test_handbook_header_has_no_duplicate_lines():
     assert md.count("**Days:**") == 1 and md.count("**Destination:**") == 1, md[:400]
 
 
+def test_group_size_budget_and_prices_are_per_person():
+    from swarm.code_agents.finance import finance_report, finance_md
+    from swarm.code_agents.plausibility import plausibility_check
+    from swarm.code_agents.reality import load_cost_reference
+    req = load_scenario("shenzhen_3day")
+    assert req.group_size == 1 and req.budget_per_person == req.budget_eur
+    assert "per person" not in req.request_text(), "a single traveller keeps the old text"
+    big = req.model_copy(update={"group_size": 4, "budget_eur": 4000.0})
+    assert big.budget_per_person == 1000.0 and "Group of 4" in big.request_text() and "1000 EUR per person" in big.request_text()
+    # a group budget that is too small per person is refused by the plausibility gate
+    poor = req.model_copy(update={"group_size": 10, "budget_eur": 1000.0})
+    hard = plausibility_check(poor)["hard"]
+    assert hard and "per person" in hard[0], hard
+    # the report multiplies the per-person total by the group
+    plan = _plan([[_act("DJI", "09:00", "10:00")]])
+    plan.days[0].activities[0].cost_eur = 100.0
+    rep = finance_report(plan, big, load_cost_reference(big.cost_profile))
+    assert rep["total_eur"] == 100.0 and rep["total_group_eur"] == 400.0 and rep["left_eur"] == 3600.0, rep
+    assert "4 travellers = 400.00 EUR" in finance_md(rep)
+    try:
+        req.model_validate({**req.model_dump(), "group_size": 0})
+    except ValueError:
+        pass
+    else:
+        raise AssertionError("group_size 0 must be rejected")
+
+
+def test_place_must_be_in_the_region_of_the_trip():
+    from swarm.code_agents import geo, plausibility, reality
+    sz = geo.load_geo("shenzhen")
+    assert geo.km_outside((22.54, 114.05), sz) is None
+    assert geo.km_outside((60.17, 24.94), sz) > 7000, "Helsinki is far from Shenzhen"
+    assert geo.km_outside((60.17, 24.94), {}) is None and geo.load_geo("nowhere") == {}
+    req = load_scenario("shenzhen_3day").model_copy(update={"must_visit": ["DJI", "Helsinki"]})
+    calls = []
+    def fake(name, **kw):
+        calls.append((kw["place"], kw["city"]))
+        if kw["place"] == "Helsinki" and kw["city"] == "":  # not found in the region, but exists far away
+            return {"ok": True, "result": {"found": True, "lat": 60.17, "lon": 24.94, "source": "live"}}
+        if kw["place"] == "Helsinki":
+            return {"ok": True, "result": {"found": False, "source": "live"}}
+        return {"ok": True, "result": {"found": True, "lat": 22.54, "lon": 113.95, "source": "live"}}
+    real = plausibility.run_skill
+    plausibility.run_skill = fake
+    try:
+        res = plausibility.plausibility_check(req)
+    finally:
+        plausibility.run_skill = real
+    assert any("'Helsinki' is" in h and "km from the centre of Shenzhen" in h and "place_coordinates" in h
+               for h in res["hard"]), res["hard"]
+    assert not any("DJI" in h for h in res["hard"])
+    # the Planner's own pick is checked in the plan too, and blamed on the Planner
+    plan = _plan([[_act("DJI", "09:00", "10:00"), _act("Helsinki", "10:30", "11:30")]])
+    real_skill = reality.run_skill
+    reality.run_skill = lambda name, **kw: {"ok": True, "result": (
+        {"found": True, "lat": 60.17, "lon": 24.94, "source": "live"} if kw.get("place") == "Helsinki"
+        else {"found": True, "lat": 22.54, "lon": 113.95, "source": "live", "minutes": 5.0})}
+    try:
+        out = reality.reality_check(plan, ["DJI"], {}, "Shenzhen, China", None, None, sz, "Shenzhen")
+    finally:
+        reality.run_skill = real_skill
+    assert any("Place 'Helsinki' is" in i for i in out["logistics_issues"]), out["logistics_issues"]
+    from types import SimpleNamespace as NS
+    from swarm.llm_agents.justice import blame_planner_for_chosen_places
+    rough = NS(days=[NS(target_hubs=[NS(hub_name="Helsinki")])])
+    blame_planner_for_chosen_places(out, rough, NS(region="Shenzhen, China"))
+    assert not out["logistics_issues"] and any("Place 'Helsinki' is" in i for i in out["planner_issues"]), out
+
+
+def test_meal_times_are_mandatory():
+    from swarm.code_agents import meal_times
+    from swarm.code_agents.finance import agent_finance
+    meals = meal_times.load_meals("shenzhen")
+    assert list(meals) == ["breakfast", "lunch", "dinner"] and meal_times.load_meals("nowhere") == {}
+    assert "Mandatory meal times" in meal_times.meal_prompt_text(meals) and meal_times.meal_prompt_text({}) == ""
+    # a visit through lunch (11:00-15:00) keeps its longer side; one through dinner is cut at the window
+    plan = _plan([[_act("DJI", "09:00", "12:30"), _act("HAX", "13:30", "16:00")],
+                  [_act("InnoX", "16:00", "18:45")]])
+    notes = meal_times.fix_meal_times(plan, meals)
+    assert [(a.start_time, a.end_time) for a in plan.days[0].activities] == [("09:00", "12:00"), ("14:00", "16:00")], notes
+    assert plan.days[1].activities[0].end_time == "18:30"
+    assert meal_times.meal_problems(plan, meals) == []
+    # too short after the cut: left alone, then reported with the soft marker
+    short = _plan([[_act("DJI", "11:45", "12:30")]])
+    assert meal_times.fix_meal_times(short, meals) == []
+    probs = meal_times.meal_problems(short, meals)
+    assert len(probs) == 1 and "overlaps a meal time" in probs[0] and "lunch 12:00-14:00" in probs[0], probs
+    from swarm.code_agents.plan_quality import SOFT_MARKERS
+    assert any(m in probs[0] for m in SOFT_MARKERS)
+    # the Finance meals row sits in the lunch window
+    p2 = _plan([[_act("DJI", "09:00", "11:30")]])
+    agent_finance(p2, {"hotel_night_eur": 40, "meals_per_day_eur": 25, "local_transport_per_day_eur": 10},
+                  printer=lambda *_: None, meals_windows=meals)
+    row = next(a for a in p2.days[0].activities if a.location == "Meals and local transport")
+    assert (row.start_time, row.end_time) == ("12:00", "14:00"), (row.start_time, row.end_time)
+
+
 if __name__ == "__main__":
     tests = [v for k, v in sorted(globals().items()) if k.startswith("test_")]
     for t in tests:

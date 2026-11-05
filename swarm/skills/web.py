@@ -169,7 +169,7 @@ def _unrelated_hit(query: str, city: str, result: dict) -> bool:
        "could not be reached (unverified). Returns coordinates.",
        "place: str, city: str")
 def verify_place(place: str, city: str) -> dict:
-    query = f"{place}, {city}"
+    query = f"{place}, {city}" if city else place  # no city: look the name up anywhere in the world
     key = "place2:" + query.lower()  # place2: hits are checked for unrelated small places
     hit = _cache_get(key)
     if hit is not None:

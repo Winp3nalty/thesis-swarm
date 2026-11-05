@@ -3,7 +3,7 @@ What version of the project produced a result?
 
   version      label from version.txt (edit that file by hand at milestones)
   git_commit   short git hash, '-dirty' if tracked files have uncommitted changes, 'no-git' if unknown
-  rules_hash   short hash of the prompts/*/SOUL.md files, data/cost/*.json and data/transit/*.json, because
+  rules_hash   short hash of the prompts/*/SOUL.md files, data/cost, transit, geo and culture *.json, because
                changing a prompt or the cost table changes behaviour without changing any code
 
 Stdlib only, so every other module can import it.
@@ -47,7 +47,8 @@ def git_commit() -> str:
 def rules_hash(root=None) -> str:
     base = Path(root) if root else _ROOT
     files = sorted((base / "prompts").glob("*/SOUL.md")) + sorted((base / "data" / "cost").glob("*.json")) \
-        + sorted((base / "data" / "transit").glob("*.json"))
+        + sorted((base / "data" / "transit").glob("*.json")) \
+        + sorted((base / "data" / "geo").glob("*.json")) + sorted((base / "data" / "culture").glob("*.json"))
     h = hashlib.sha256()
     for f in files:
         try:

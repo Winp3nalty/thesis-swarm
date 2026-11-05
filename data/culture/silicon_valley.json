@@ -1,0 +1,8 @@
+{
+  "_note": "PLACEHOLDER HOURS, not verified facts. Meal times are mandatory: no visit may overlap them, and the Finance row for meals is placed in the lunch window.",
+  "meals": {
+    "breakfast": ["07:30", "08:30"],
+    "lunch": ["12:00", "13:00"],
+    "dinner": ["18:30", "19:30"]
+  }
+}

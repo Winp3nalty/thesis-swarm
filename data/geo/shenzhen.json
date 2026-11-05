@@ -1,0 +1,5 @@
+{
+  "_note": "Where a day trip can reach. A place whose coordinates are farther than radius_km from the centre is not a place of this expedition (for example Helsinki for Shenzhen). Edit to widen the area.",
+  "center": [22.5431, 114.0579],
+  "radius_km": 80
+}

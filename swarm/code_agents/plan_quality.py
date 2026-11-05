@@ -13,7 +13,7 @@ from __future__ import annotations
 # weak evidence and ends as a warning, never as a rejection).
 SOFT_MARKERS = ("below the realistic minimum", "was not found on OpenStreetMap", "(the last day) has no real visit",
                 "repeated visit", "mostly hotel time", "more than one hotel check-", "Lodging is charged",
-                "'Overnight stay' row starts at", "has no overnight stay")
+                "'Overnight stay' row starts at", "has no overnight stay", "overlaps a meal time")
 
 _CHECK_IN = ("check-in", "check in", "checkin")
 _CHECK_OUT = ("check-out", "check out", "checkout")
