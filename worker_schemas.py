@@ -19,13 +19,13 @@ class TransitPlan(BaseModel):
 class OutreachEmail(BaseModel):
     subject: str = Field(min_length=5)
     greeting: str
-    body: str = Field(description="120-180 words, requesting a 30-minute lab tour")
+    body: str = Field(description="100-180 words, requesting a 30-minute lab tour")
     sign_off: str
 
     @field_validator("body")
     @classmethod
     def body_length(cls, v: str) -> str:
         n = len(v.split())
-        if not 120 <= n <= 180:
-            raise ValueError(f"body has {n} words, it must have 120-180")
+        if not 100 <= n <= 180:
+            raise ValueError(f"body has {n} words, it must have 100-180")
         return v

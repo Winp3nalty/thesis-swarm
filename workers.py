@@ -43,13 +43,13 @@ def _retry_feedback(err: Exception) -> str:
     m = re.search(r"body has (\d+) words", str(err))
     if m:
         n = int(m.group(1))
-        if n < 120:
+        if n < 100:
             _, previous = _describe_schema_error(err)
             shown = f"\nYour previous body (extend it, keep what is good):\n{previous}\n" if previous else ""
             return (f"\n\nYOUR PREVIOUS ANSWER WAS REJECTED: the body had only {n} words, "
-                    f"but it needs at least 140. Rewrite the whole body and ADD about {150 - n} more words: "
-                    "expand the paragraph about the professor's research and the paragraph with the request. "
-                    "Do not repeat your previous text." + shown)
+                    f"but it needs at least 130. Rewrite the whole body and ADD about {140 - n} more words: "
+                    "one more sentence on what the students hope to learn from the professor's topics, and one more "
+                    "on how the visit can fit the professor's schedule. Do not repeat your previous text." + shown)
         return (f"\n\nYOUR PREVIOUS ANSWER WAS REJECTED: the body had {n} words, but it must have at most 180. "
                 "Shorten it to about 160 words.")
     return (f"\n\nYOUR PREVIOUS ANSWER WAS REJECTED: {str(err)[:600]}\n"
@@ -140,7 +140,8 @@ def agent_transit(city: str, stops: list[str], day: int = 1, max_retries: int = 
     user_prompt = (
         f"City: {city}\nDay: {day}\nOrdered stops:\n"
         + "\n".join(f"{i + 1}. {s}" for i, s in enumerate(stops))
-        + "\n\nReturn one leg between each consecutive pair of stops, in this exact order."
+        + f"\n\nReturn exactly {len(stops) - 1} leg(s), one between each consecutive pair of stops, in this exact order. "
+        "Do not add a leg to a hotel or back to the start."
     )
     known = [(i, d) for i, d in enumerate(drive_minutes or []) if d is not None]
     if known:
@@ -206,7 +207,7 @@ def agent_outreach(contact: dict, max_retries: int = 2):
         +
         "Never claim a project, research or result of the student group; the group only wants to learn.\n"
         f"Paragraph 1 MUST contain the words \"{contact['institution']}\".\n"
-        "Length: write about 165 words in three paragraphs; the body must have at least 150 words.\n"
+        "Length: write about 165 words in three paragraphs; the body must have at least 130 words.\n"
     )
     return run_worker(system_prompt, user_prompt, OutreachEmail,
                       lambda email: validate_outreach(email, contact), max_retries)

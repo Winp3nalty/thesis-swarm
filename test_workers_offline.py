@@ -47,7 +47,7 @@ def test_schemas():
             pass
         else:
             raise AssertionError("minutes outside 1-300 must be rejected")
-    for n in (50, 119, 181):
+    for n in (50, 99, 181):
         try:
             OutreachEmail(subject="Hello there", greeting="Dear Prof", body=" ".join(["w"] * n), sign_off="Bye")
         except ValidationError:
@@ -203,7 +203,14 @@ def test_invented_claim_check_uses_whole_words():
     except Exception as e:
         fb = workers._retry_feedback(e)
         assert "a short text of only" in fb and "ADD about" in fb, fb
-    print("[OK] whole-word claim check; retry feedback shows the previous body")
+    ok = OutreachEmail(subject="Lab tour request", greeting="Dear X,", body=" ".join(["w"] * 100), sign_off="Bye")
+    assert len(ok.body.split()) == 100  # 100 words is now accepted
+    try:
+        OutreachEmail(subject="Lab tour request", greeting="Dear X,", body=" ".join(["w"] * 99), sign_off="Bye")
+        raise AssertionError("99 words must be rejected")
+    except ValueError as e:
+        assert "100-180" in str(e)
+    print("[OK] whole-word claim check; retry feedback shows the previous body; minimum is 100 words")
 
 
 def test_outreach_validator_rules():

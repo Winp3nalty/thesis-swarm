@@ -141,3 +141,7 @@ Borrowed ideas and their status are listed in `THIRD_PARTY.md`.
 ## v0.8.5: no invented numbers for the hotel
 - `coordinator.day_stops` leaves out hotels and other generic stops. Their position is unknown, so Transit now routes only between real places, and a day with fewer than two real places gets no Transit file.
 - More student-claim phrases are blocked in outreach emails ("currently exploring", "our studies", "we are working on", ...).
+
+## v0.8.6: length rule matches what the model can do
+- Outreach bodies may have 100-180 words (was 120-180). qwen3:8b wrote 113-119 words in five of six attempts and repeated the same text on retry; the length is not what makes an email good. The retry text now names two concrete sentences to add.
+- Transit prompt states the exact number of legs; the model had added a leg to the hotel in 4 of 5 days.

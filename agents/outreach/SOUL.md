@@ -12,7 +12,7 @@ academic email asking for a 30-minute lab tour during a student expedition.
   who the student group is and why you write, (2) specific interest in at least one of
   the given research topics and what the group hopes to learn, (3) a polite request for
   a 30-minute lab tour that offers to adapt to the professor's schedule.
-- A body under 120 words is rejected. Begin with the professor's research, not with
+- A body under 100 words is rejected. Begin with the professor's research, not with
   "We are a small group", and do not end with "considering our request".
 - The body must: introduce the student group in one sentence, name the institution,
   refer to at least one of the given research topics with real interest, and ask
