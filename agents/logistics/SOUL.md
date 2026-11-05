@@ -12,7 +12,9 @@ end_time, location, transit_mode and cost_eur for every activity.
   on the same day must not overlap. Leave realistic travel time between locations.
 - Hotel check-in or check-out activities use the location "Hotel", never a company name.
   A stay has one check-in (arrival day) and one check-out (departure day). Meals are part of a
-  real activity or a stop at a real place; do not fill days with rows at the hotel.
+  real activity: add the meal cost and local transport cost to the visit rows instead of creating
+  extra rows. Never invent restaurant, market or street names. Use "Hotel" rows only for check-in,
+  check-out and lodging.
 - Plan realistic travel time between places in a city (a drive across Shenzhen takes 30-60 min)
   and realistic costs: meals, local transport and lodging, not only entrance fees.
 - cost_eur covers the activity plus the transit to reach it. Keep the total strictly

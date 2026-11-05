@@ -8,8 +8,11 @@ contains one of the markers, because run_loop.is_soft_note() recognises soft not
 """
 from __future__ import annotations
 
-# A note containing one of these is soft. The first marker is written by reality.py (cost floors).
-SOFT_MARKERS = ("below the realistic minimum", "repeated visit", "mostly hotel time", "more than one hotel check-")
+# A note containing one of these is soft. The first two are written by reality.py (cost floors, places
+# OpenStreetMap does not know: its free-text search misses many restaurants and markets, so that is
+# weak evidence and ends as a warning, never as a rejection).
+SOFT_MARKERS = ("below the realistic minimum", "was not found on OpenStreetMap", "repeated visit", "mostly hotel time",
+                "more than one hotel check-")
 
 _CHECK_IN = ("check-in", "check in", "checkin")
 _CHECK_OUT = ("check-out", "check out", "checkout")
@@ -40,8 +43,8 @@ def quality_check(plan, is_generic, max_days_per_place: int = 1) -> dict:
         generic = len(day.activities) - real
         if real >= 1 and generic > real + 1:
             logistics.append(f"Day {day.day} is mostly hotel time ({generic} of {len(day.activities)} activities "
-                             f"are at the hotel or in transit, {real} real visit). Replace hotel rows with "
-                             "meals or stops at real places.")
+                             f"are at the hotel or in transit, {real} real visit). Remove the extra hotel rows: put "
+                             "meal costs into the visit rows instead of adding new venues.")
 
     # 3. one stay has one check-in and one check-out
     for words, label in ((_CHECK_IN, "check-in"), (_CHECK_OUT, "check-out")):

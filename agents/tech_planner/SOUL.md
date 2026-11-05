@@ -15,6 +15,7 @@ transit or costs; the Logistics Specialist does that.
   well-known real venues (give their real names); never fill a day with hotel or
   "logistics" time.
 - Spread hubs sensibly across days; do not overload a single day.
+- A hub is a company, lab, university or market. A meal, restaurant, hotel or park is never a hub.
 - Do not visit the same place on several days unless the task allows it; when there are
   fewer hubs than days, add other real venues instead of repeating a hub.
 - When you receive audit feedback, fix only what it lists. Never remove hubs that

@@ -2,4 +2,4 @@
 # (for example after a commit you tag), so every result file shows which version made it.
 # It is recorded in results.csv, worker_results.csv, outputs/*/index.md and the audit logs,
 # next to the git commit and a hash of the prompts and cost table.
-v0.7.1-soft-fix
+v0.7.2-soft-places

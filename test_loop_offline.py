@@ -377,7 +377,8 @@ def main():
     repeat_notes = plan_quality.quality_check(repeat, reality._is_generic, 1)["planner_issues"]
     assert all(run_loop.is_soft_note(n) for n in notes + q["planner_issues"] + repeat_notes)
     assert not run_loop.is_soft_note("Missing mandatory hub: HAX") and not run_loop.is_soft_note("Budget exceeded: 5 EUR > 1 EUR")
-    assert not run_loop.is_soft_note("Place 'X' was not found on OpenStreetMap in Shenzhen.")
+    assert run_loop.is_soft_note("Place 'X' was not found on OpenStreetMap in Shenzhen, China.")  # weak evidence: a warning
+    assert not run_loop.is_soft_note("Day 2: 'Hotel check-in' is a hotel activity but the location says 'DJI'.")
     print("[OK] quality checks: repeats, hotel filler and extra check-ins are found, and are soft")
 
     # price floors come from the city's file, not from constants
@@ -453,6 +454,34 @@ def main():
     assert run_loop.run_swarm_loop(load_scenario("shenzhen_3day"), max_iterations=2) is not None
     assert Path("results.csv").read_text().splitlines()[-1].split(",")[3] == "2"
     print("[OK] soft problems are decided from the checks, not the model's wording; last round approves soft-only plans")
+
+    # v0.7.2: an invented venue ends as a warning in plan.md, not as a rejection.
+    os.chdir(tempfile.mkdtemp())
+    web._WEB_CACHE = Path(tempfile.mkdtemp()) / "inv.json"
+    os.environ.pop("SWARM_OFFLINE", None)
+    web._nominatim = lambda q: [] if "night market" in q.lower() else [{"lat": "22.5", "lon": "114.0", "display_name": q}]
+    web._osrm = lambda a, b, c, d: 600.0
+    web.time.sleep = lambda s: None
+
+    def market_llm(sp, up, rm, temperature=0.2):
+        out = fake_llm(sp, up, rm)
+        if rm is ExpeditionPlan:
+            out = ExpeditionPlan.model_validate_json(out.model_dump_json().replace("HAX", "Night Market Lane"))
+            out.days[1].activities[0].location = "Wangxia Night Market"
+            for d in out.days:
+                for a in d.activities:
+                    a.cost_eur = 60.0
+        if rm is RoughItinerary:
+            out = RoughItinerary.model_validate_json(out.model_dump_json())
+        return out
+
+    run_loop.call_structured_llm = market_llm
+    res = run_loop.run_swarm_loop(load_scenario("shenzhen_3day").model_copy(update={"must_visit": ["DJI", "Huaqiangbei"], "days": 3}),
+                                  max_iterations=6)
+    plan_md = (sorted(Path("outputs").iterdir())[-1] / "plan.md").read_text(encoding="utf-8")
+    assert res is not None and "Wangxia Night Market" in plan_md and "Warnings" in plan_md, plan_md
+    os.environ["SWARM_OFFLINE"] = "1"
+    print("[OK] an unknown venue is a warning in plan.md, not a rejection")
     print("\nAll offline loop tests passed.")
 
 

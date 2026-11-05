@@ -94,7 +94,9 @@ The fixed minimums of v0.6 (60 EUR per day, 300 EUR for the trip) are gone. Sinc
 are derived from the city's price file: a day costs at least meals + local transport, a trip at least
 `days x (meals + transport) + nights x hotel`. The price files hold assumptions, to be cited in the thesis.
 A request below the trip floor is stopped before any model call (`REJECTED_IMPLAUSIBLE`).
-Soft problems (cost floor, repeated visit, hotel filler, extra check-in) are waived after 3 rounds.
+Soft problems (cost floor, repeated visit, hotel filler, extra check-in, a place OpenStreetMap does not know)
+are waived after 3 rounds, or on the last round, and listed as warnings. Missing hubs, the budget ceiling and
+schedule overlaps are never waived.
 
 ## 6. What is already in place (do not rebuild)
 

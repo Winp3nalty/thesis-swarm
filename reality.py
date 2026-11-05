@@ -70,8 +70,8 @@ def reality_check(plan, required_hubs: list[str], search_names: dict | None = No
             log.append({"check": "place", "name": name, "found": found, "source": r.get("source"),
                         "detail": r.get("display_name", "")})
             if found is False and key not in required and not _is_generic(name):
-                logistics.append(f"Place '{name}' was not found on OpenStreetMap in {city}. "
-                                 "Use a real, existing venue name.")
+                logistics.append(f"Place '{name}' was not found on OpenStreetMap in {city}. If it is a meal, put "
+                                 "its cost into a visit row instead; otherwise use the real name of an existing venue.")
         return coords[key]
 
     # 1. every day needs at least one real visit
