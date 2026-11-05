@@ -2,41 +2,57 @@
   "runs": [
     {
       "text": "Shenzhen, China, 7 days (2026-11-06)",
-      "link": "/runs/shenzhen-china-7day-2026-11-06_00-38-25"
+      "link": "/runs/shenzhen-china-7day-2026-11-06_01-11-08"
     },
     {
-      "text": "Shenzhen, China, 3 days (2026-11-05)",
-      "link": "/runs/shenzhen-china-3day-2026-11-05_23-31-11"
+      "text": "Shenzhen, China, 7 days (2026-11-06)",
+      "link": "/runs/shenzhen-china-7day-2026-11-06_01-10-09"
+    },
+    {
+      "text": "Shenzhen, China, 7 days (2026-11-06)",
+      "link": "/runs/shenzhen-china-7day-2026-11-06_01-07-32"
+    },
+    {
+      "text": "Shenzhen, China, 7 days (2026-11-06)",
+      "link": "/runs/shenzhen-china-7day-2026-11-06_01-04-27"
+    },
+    {
+      "text": "Shenzhen, China, 7 days (2026-11-06)",
+      "link": "/runs/shenzhen-china-7day-2026-11-06_01-02-55"
     },
     {
       "text": "Silicon Valley, USA, 7 days (2026-11-05)",
-      "link": "/runs/silicon-valley-usa-7day-2026-11-05_23-18-33"
+      "link": "/runs/silicon-valley-usa-7day-2026-11-05_23-23-25"
+    },
+    {
+      "text": "Silicon Valley, USA, 7 days (2026-11-05)",
+      "link": "/runs/silicon-valley-usa-7day-2026-11-05_23-21-21"
+    },
+    {
+      "text": "Silicon Valley, USA, 7 days (2026-11-05)",
+      "link": "/runs/silicon-valley-usa-7day-2026-11-05_23-19-13"
+    },
+    {
+      "text": "Silicon Valley, USA, 7 days (2026-11-05)",
+      "link": "/runs/silicon-valley-usa-7day-2026-11-05_23-17-10"
+    },
+    {
+      "text": "Silicon Valley, USA, 7 days (2026-11-05)",
+      "link": "/runs/silicon-valley-usa-7day-2026-11-05_23-15-06"
     }
   ],
   "benchmarks": [
     {
-      "text": "Batch summary: silicon_valley_7day (2026-11-05_23-18-33)",
-      "link": "/benchmarks/summary_silicon_valley_7day_2026-11-05_23-18-33"
+      "text": "Batch summary: silicon_valley_7day (2026-11-06_01-01-10)",
+      "link": "/benchmarks/summary_silicon_valley_7day_2026-11-06_01-01-10"
     },
     {
-      "text": "Batch summary: silicon_valley_7day (2026-11-05_22-54-16)",
-      "link": "/benchmarks/summary_silicon_valley_7day_2026-11-05_22-54-16"
+      "text": "Batch summary: silicon_valley_7day (2026-11-05_23-23-25)",
+      "link": "/benchmarks/summary_silicon_valley_7day_2026-11-05_23-23-25"
     },
     {
-      "text": "Batch summary: shenzhen_7day (2026-11-05_22-46-12)",
-      "link": "/benchmarks/summary_shenzhen_7day_2026-11-05_22-46-12"
-    },
-    {
-      "text": "Batch summary: shenzhen_3day (2026-11-06_00-43-57)",
-      "link": "/benchmarks/summary_shenzhen_3day_2026-11-06_00-43-57"
-    },
-    {
-      "text": "Batch summary: shenzhen_3day (2026-11-06_00-37-06)",
-      "link": "/benchmarks/summary_shenzhen_3day_2026-11-06_00-37-06"
-    },
-    {
-      "text": "Batch summary: shenzhen_3day (2026-11-06_00-20-11)",
-      "link": "/benchmarks/summary_shenzhen_3day_2026-11-06_00-20-11"
+      "text": "Batch summary: shenzhen_7day (2026-11-06_01-11-08)",
+      "link": "/benchmarks/summary_shenzhen_7day_2026-11-06_01-11-08"
     }
   ]
 }

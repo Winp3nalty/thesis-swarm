@@ -10,10 +10,10 @@ outline: [2, 3]
 | Status | SUCCESS_WITH_WARNINGS |
 | Version | v0.9.6 (git ?, rules 3b4a442b) |
 | Model | qwen3:8b |
-| GPU | NVIDIA GeForce RTX 5070 |
+| GPU | NVIDIA GeForce RTX 4070 SUPER |
 | Iterations | 3 |
 | Total cost | 1115.00 EUR per person |
-| Run | 2026-11-05_23-18-33 |
+| Run | 2026-11-05_23-15-06 |
 
 
 - **Status:** SUCCESS_WITH_WARNINGS
@@ -23,7 +23,6 @@ outline: [2, 3]
 ## Warnings (plan approved with reservations)
 
 - Place 'NVIDIA Headquarters' was not found on OpenStreetMap in California, USA. Replace it with a different real place from the optional list or another well-known venue that exists.
-- Place 'Intuitive Surgical' was not found on OpenStreetMap in California, USA. Replace it with a different real place from the optional list or another well-known venue that exists.
 
 - **Destination:** Silicon Valley, USA
 - **Days:** 7
@@ -33,75 +32,75 @@ outline: [2, 3]
 
 | Time | Location | What happens | Transit | Cost (EUR) |
 |---|---|---|---|---|
-| 09:00-12:00 | Stanford University | Robotics and AI research tour | car | 0.00 |
+| 09:00-12:00 | Stanford University | Robotics research and AI labs tour | car | 0.00 |
 | 12:30-13:00 | Meals and local transport | Meals and local transport for the day (estimate from the price table) | metro/taxi | 65.00 |
-| 13:30-16:30 | SRI International | Embodied AI and robotics research tour | car | 0.00 |
+| 13:30-16:30 | SRI International | Embodied AI and robotics innovation tour | car | 0.00 |
 | 20:00-23:59 | Hotel | Hotel check-in and overnight stay | none | 110.00 |
 
 Day total: 175.00 EUR
 
-## Day 2: Startups & Innovation
+## Day 2: Startups & Innovation Ecosystem
 
 | Time | Location | What happens | Transit | Cost (EUR) |
 |---|---|---|---|---|
-| 09:00-12:00 | Googleplex | Startups and innovation tour | car | 0.00 |
+| 09:00-12:00 | Googleplex | Startups and innovation in tech tour | car | 0.00 |
 | 12:30-13:00 | Meals and local transport | Meals and local transport for the day (estimate from the price table) | metro/taxi | 65.00 |
-| 13:30-16:30 | The Tech Interactive | Tech innovation and education tour | car | 0.00 |
+| 13:30-16:30 | Hewlett-Packard Garage | Historical innovation and startup culture tour | car | 0.00 |
 | 20:00-23:59 | Hotel | Overnight stay | none | 110.00 |
 
 Day total: 175.00 EUR
 
-## Day 3: AI & Hardware
+## Day 3: AI & Hardware Innovation
 
 | Time | Location | What happens | Transit | Cost (EUR) |
 |---|---|---|---|---|
-| 09:00-12:00 | Apple Park Visitor Center | AI and hardware innovation tour | car | 0.00 |
+| 09:00-12:00 | Meta Headquarters | AI and embodied intelligence research tour | car | 0.00 |
 | 12:30-13:00 | Meals and local transport | Meals and local transport for the day (estimate from the price table) | metro/taxi | 65.00 |
-| 13:30-16:30 | Intel Museum | History of computing and hardware tour | car | 0.00 |
+| 13:30-16:30 | NASA Ames Research Center | AI and hardware innovation tour | car | 0.00 |
 | 20:00-23:59 | Hotel | Overnight stay | none | 110.00 |
 
 Day total: 175.00 EUR
 
-## Day 4: AI & Robotics
-
-| Time | Location | What happens | Transit | Cost (EUR) |
-|---|---|---|---|---|
-| 09:00-12:00 | UC Berkeley | AI and robotics research tour | car | 0.00 |
-| 12:30-13:00 | Meals and local transport | Meals and local transport for the day (estimate from the price table) | metro/taxi | 65.00 |
-| 13:30-16:30 | Lawrence Berkeley National Laboratory | AI and robotics research tour | car | 0.00 |
-| 20:00-23:59 | Hotel | Overnight stay | none | 110.00 |
-
-Day total: 175.00 EUR
-
-## Day 5: Hardware & Innovation
-
-| Time | Location | What happens | Transit | Cost (EUR) |
-|---|---|---|---|---|
-| 09:00-12:00 | Tesla Factory | Hardware innovation and manufacturing tour | car | 0.00 |
-| 12:30-13:00 | Meals and local transport | Meals and local transport for the day (estimate from the price table) | metro/taxi | 65.00 |
-| 13:30-16:30 | Meta Headquarters | AI and hardware innovation tour | car | 0.00 |
-| 20:00-23:59 | Hotel | Overnight stay | none | 110.00 |
-
-Day total: 175.00 EUR
-
-## Day 6: History & Innovation
+## Day 4: Computer History & Innovation
 
 | Time | Location | What happens | Transit | Cost (EUR) |
 |---|---|---|---|---|
 | 09:00-12:00 | Computer History Museum | History of computing and innovation tour | car | 0.00 |
 | 12:30-13:00 | Meals and local transport | Meals and local transport for the day (estimate from the price table) | metro/taxi | 65.00 |
-| 13:30-16:30 | NVIDIA Headquarters | AI and hardware innovation tour | car | 0.00 |
+| 13:30-16:30 | The Tech Interactive | Modern tech and innovation tour | car | 0.00 |
 | 20:00-23:59 | Hotel | Overnight stay | none | 110.00 |
 
 Day total: 175.00 EUR
 
-## Day 7: Robotics & AI
+## Day 5: Robotics & AI Research
 
 | Time | Location | What happens | Transit | Cost (EUR) |
 |---|---|---|---|---|
-| 09:00-12:00 | NASA Ames Research Center | Robotics and AI research tour | car | 0.00 |
+| 09:00-12:00 | UC Berkeley | Robotics and AI research tour | car | 0.00 |
 | 12:30-13:00 | Meals and local transport | Meals and local transport for the day (estimate from the price table) | metro/taxi | 65.00 |
-| 13:30-16:30 | Intuitive Surgical | Robotics and medical innovation tour | car | 0.00 |
+| 13:30-16:30 | Lawrence Berkeley National Laboratory | Advanced AI and robotics research tour | car | 0.00 |
+| 20:00-23:59 | Hotel | Overnight stay | none | 110.00 |
+
+Day total: 175.00 EUR
+
+## Day 6: Hardware & Engineering Innovation
+
+| Time | Location | What happens | Transit | Cost (EUR) |
+|---|---|---|---|---|
+| 09:00-12:00 | Intel Museum | History of hardware innovation tour | car | 0.00 |
+| 12:30-13:00 | Meals and local transport | Meals and local transport for the day (estimate from the price table) | metro/taxi | 65.00 |
+| 13:30-16:30 | Tesla Factory | Engineering and hardware innovation tour | car | 0.00 |
+| 20:00-23:59 | Hotel | Overnight stay | none | 110.00 |
+
+Day total: 175.00 EUR
+
+## Day 7: Final Reflections & Networking
+
+| Time | Location | What happens | Transit | Cost (EUR) |
+|---|---|---|---|---|
+| 09:00-12:00 | Apple Park Visitor Center | Innovation and design in tech tour | car | 0.00 |
+| 12:30-13:00 | Meals and local transport | Meals and local transport for the day (estimate from the price table) | metro/taxi | 65.00 |
+| 13:30-16:30 | NVIDIA Headquarters | AI and hardware innovation tour | car | 0.00 |
 
 Day total: 65.00 EUR
 
@@ -110,29 +109,29 @@ Day total: 65.00 EUR
 
 | Day | Visits | Meals | Local transport | Transit extra | Lodging | Total (EUR) | Total (USD) |
 |---|---|---|---|---|---|---|---|
-| 1 | 0.00 | 45.00 | 20.00 | 0.00 | 110.00 | 175.00 | 197 |
-| 2 | 0.00 | 45.00 | 20.00 | 0.00 | 110.00 | 175.00 | 197 |
-| 3 | 0.00 | 45.00 | 20.00 | 0.00 | 110.00 | 175.00 | 197 |
-| 4 | 0.00 | 45.00 | 20.00 | 0.00 | 110.00 | 175.00 | 197 |
-| 5 | 0.00 | 45.00 | 20.00 | 0.00 | 110.00 | 175.00 | 197 |
-| 6 | 0.00 | 45.00 | 20.00 | 0.00 | 110.00 | 175.00 | 197 |
+| 1 | 0.00 | 45.00 | 20.00 | 0.00 | 110.00 | 175.00 | 196 |
+| 2 | 0.00 | 45.00 | 20.00 | 0.00 | 110.00 | 175.00 | 196 |
+| 3 | 0.00 | 45.00 | 20.00 | 0.00 | 110.00 | 175.00 | 196 |
+| 4 | 0.00 | 45.00 | 20.00 | 0.00 | 110.00 | 175.00 | 196 |
+| 5 | 0.00 | 45.00 | 20.00 | 0.00 | 110.00 | 175.00 | 196 |
+| 6 | 0.00 | 45.00 | 20.00 | 0.00 | 110.00 | 175.00 | 196 |
 | 7 | 0.00 | 45.00 | 20.00 | 0.00 | 0.00 | 65.00 | 73 |
 
-- **Total:** 1115.00 EUR (about 1256 USD), budget 2800 EUR, 1685.00 EUR left
+- **Total:** 1115.00 EUR (about 1251 USD), budget 2800 EUR, 1685.00 EUR left
 - Meals and local transport are allowances from the city price table (data/cost/), not measured prices.
 - Transit estimates were compared with the transport allowance on 7 day(s); a higher estimate is added in 'Transit extra'.
-- Exchange rate: 1 EUR = 1.1267 USD (cache, 2026-11-04).
+- Exchange rate: 1 EUR = 1.1224 USD (cache, 2026-11-05).
 
 
 ## Routes
 
-- **Day 1:** Stanford University → SRI International (25 min, 2.25 EUR)
-- **Day 2:** Googleplex → The Tech Interactive (20 min, 0.00 EUR)
-- **Day 3:** Apple Park Visitor Center → Intel Museum (13 min, 0.00 EUR)
-- **Day 4:** UC Berkeley → Lawrence Berkeley National Laboratory (15 min, 0.00 EUR)
-- **Day 5:** Tesla Factory → Meta Headquarters (27 min, 0.00 EUR)
-- **Day 6:** Computer History Museum → NVIDIA Headquarters (25 min, 0.50 EUR)
-- **Day 7:** NASA Ames Research Center → Intuitive Surgical (45 min, 0.50 EUR)
+- **Day 1:** Stanford University → SRI International (25 min, 1.50 EUR)
+- **Day 2:** Googleplex → Hewlett-Packard Garage (13 min, 0.00 EUR)
+- **Day 3:** Meta Headquarters → NASA Ames Research Center (45 min, 2.25 EUR)
+- **Day 4:** Computer History Museum → The Tech Interactive (35 min, 1.50 EUR)
+- **Day 5:** UC Berkeley → Lawrence Berkeley National Laboratory (15 min, 0.00 EUR)
+- **Day 6:** Intel Museum → Tesla Factory (21 min, 0.00 EUR)
+- **Day 7:** Apple Park Visitor Center → NVIDIA Headquarters (25 min, 0.50 EUR)
 
 ## Outreach emails
 
