@@ -96,15 +96,23 @@ used), `plan.md`, `history.md` (every draft and verdict), `run.json`, `requireme
 same scenario several times and writes `outputs/summary_*.md` with status counts, mean iterations,
 seconds and plan cost. `results.csv` gets one row per run.
 
-## 6. Workers (built, not yet in the loop)
+## 6. Workers and the Coordinator
 **`workers.py`, `worker_schemas.py`**: Transit (legs between stops) and Outreach (email requesting a lab
-tour) agents with the same schema-plus-retry pattern. `test_workers.py` measures first-attempt valid
-JSON. Next step: a Coordinator that calls them from the loop.
+tour) agents with the same schema-plus-retry pattern. `test_workers.py` measures first-attempt valid JSON.
+
+**`coordinator.py`**: plain code that runs after the Auditor approves. For each day it takes the plan's
+locations in order and asks Transit for the legs between them; for each outreach target in the scenario
+it asks Outreach for an email. Every handover is permission-checked (auditor to coordinator to
+transit/outreach and back to user). A failing worker is recorded as FAILED and never discards the plan.
+Results appear as `transit_dayN.md` and `outreach_oNN.md` in the run folder; `--no-workers` skips them.
+- *Q: Why is the Coordinator not an LLM agent?* Its job is fixed (which worker, with which input), so
+  ordinary code is cheaper, repeatable and testable. LLMs are used only where language is needed.
+- *Q: Do the worker results change the plan?* Not yet; they add routes and emails next to it.
 
 ## 7. Setup and tests
 **`setup.ps1`**: installs Python venv, packages, Ollama and the model, then runs a script.
 **`deps.py`**: installs pydantic automatically on first run.
-**`test_*.py`**: `test_core.py`, `test_loop_offline.py`, `test_workers_offline.py`, `test_output_offline.py`
+**`test_*.py`**: `test_core.py`, `test_loop_offline.py`, `test_workers_offline.py`, `test_coordinator_offline.py`, `test_output_offline.py`
 run without a model (fake LLM answers). They cover state rules, scenario validation, every check, every
 fault mode, the soft-approval rules and output files. Run them before every commit.
 
@@ -116,7 +124,7 @@ fault mode, the soft-approval rules and output files. Run them before every comm
 - *What is borrowed?* Design ideas only (permission matrix, SOUL.md, approve-with-warnings) from Edict;
   no code. See THIRD_PARTY.md.
 - *What are the limits?* The 8B model repeats drafts and sits at cost floors; OpenStreetMap misses some
-  venues; prices are assumptions; Transit and Outreach are not integrated yet.
+  venues; prices are assumptions; Transit routes are not yet checked against the plan's own transport costs.
 
 ## Study diary template
 Date | What I changed | Why | What I learned | Commit

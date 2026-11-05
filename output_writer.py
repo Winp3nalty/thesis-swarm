@@ -104,7 +104,8 @@ def render_iterations_md(iterations: list[dict]) -> str:
 
 
 def write_swarm_run(request, mode, model, gpu, status, iterations, final_plan, audit_log, root=None,
-                    warnings=None, requirements=None, plausibility=None, skills_used=None) -> Path:
+                    warnings=None, requirements=None, plausibility=None, skills_used=None,
+                    coordination=None) -> Path:
     d = new_run_dir("swarm", model, label=mode, root=root)
     write_text(d / "history.md", render_iterations_md(iterations))
     write_json(d / "history.json", iterations)
@@ -113,7 +114,8 @@ def write_swarm_run(request, mode, model, gpu, status, iterations, final_plan, a
     from version_info import version_info, version_line
     write_json(d / "run.json", {"request": request, "fault_mode": mode, "model": model, "gpu": gpu,
                                 "status": status, "iterations": len(iterations),
-                                "plausibility": plausibility, "skills_used": skills_used, **version_info()})
+                                "plausibility": plausibility, "skills_used": skills_used,
+                                "coordination": coordination["summary"] if coordination else None, **version_info()})
     index = ["# Swarm run", "", f"- **Version:** {version_line()}", f"- **Status:** {status}", f"- **Fault mode:** {mode}",
              f"- **Model:** {model}", f"- **GPU:** {gpu}", f"- **Iterations:** {len(iterations)}",
              f"- **Audit log (state path and handovers):** `{audit_log}`", "",
@@ -141,6 +143,16 @@ def write_swarm_run(request, mode, model, gpu, status, iterations, final_plan, a
                   "- [plan.json](plan.json): the same plan as data"]
     else:
         index.append("- No plan was approved in this run.")
+    if coordination:
+        index += ["- Transit routes and outreach emails (Coordinator):"]
+        for t in coordination["transit"]:
+            name = f"transit_{t['case']['id']}.md"
+            write_text(d / name, render_transit_md(t["case"], t["info"], t["result"], t["ok"], t["error"]))
+            index.append(f"  - [{name}]({name}): day {t['case']['day']} route, {'valid' if t['ok'] else 'FAILED'}")
+        for o in coordination["outreach"]:
+            name = f"outreach_{o['case']['id']}.md"
+            write_text(d / name, render_outreach_md(o["case"], o["info"], o["result"], o["ok"], o["error"]))
+            index.append(f"  - [{name}]({name}): email to {o['case']['name']}, {'valid' if o['ok'] else 'FAILED'}")
     index += ["- [history.md](history.md): every draft and the Auditor's verdict",
               "- [history.json](history.json): the same data for scripts",
               "- [run.json](run.json): settings and version of this run"]

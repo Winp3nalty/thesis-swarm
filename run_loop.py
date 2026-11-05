@@ -11,6 +11,7 @@ from skills import run_skill, reset_call_log, skills_summary
 from reality import reality_check, cost_guide_text, load_cost_reference, _is_generic
 from plan_quality import quality_check, SOFT_MARKERS
 from plausibility import plausibility_check
+from coordinator import run_coordinator
 from requirements_schema import Requirements, load_scenario
 from version_info import version_info, version_line
 import batch_summary
@@ -484,7 +485,8 @@ def _fail(record: TaskRecord, note: str) -> None:
 SAVE_OUTPUTS = os.environ.get("SWARM_SAVE_OUTPUTS", "1") != "0"
 
 
-def _save_outputs(req, mode, status, iterations, plan, record, warnings=None, plausibility=None, skills_used=None):
+def _save_outputs(req, mode, status, iterations, plan, record, warnings=None, plausibility=None, skills_used=None,
+                  coordination=None):
     """Write plan.md/plan.json/history.md under outputs/<run>/. Never lets saving break a run."""
     if not SAVE_OUTPUTS:
         return
@@ -492,13 +494,25 @@ def _save_outputs(req, mode, status, iterations, plan, record, warnings=None, pl
         import output_writer
         d = output_writer.write_swarm_run(req.request_text(), mode or "none", MODEL_NAME, _gpu_name(), status,
                                           iterations, plan, record.log_path, warnings=warnings,
-                                          requirements=req.model_dump(), plausibility=plausibility, skills_used=skills_used)
+                                          requirements=req.model_dump(), plausibility=plausibility, skills_used=skills_used,
+                                          coordination=coordination)
         print(f"[OUTPUT] Readable results saved: {d / 'index.md'}")
     except Exception as e:
         print(f"[OUTPUT] Could not save readable results: {type(e).__name__}: {e}")
 
 
-def run_swarm_loop(req: Requirements, max_iterations: int = 6, inject_mode: str = None):
+def _coordinate(req, plan, record):
+    """Run the Coordinator; a problem here must never turn an approved plan into a crash."""
+    try:
+        return run_coordinator(req, plan, record)
+    except Exception as e:
+        print(f"[COORDINATOR] failed: {type(e).__name__}: {e}")
+        record.note("coordinator", f"failed: {type(e).__name__}: {e}")
+        return None
+
+
+def run_swarm_loop(req: Requirements, max_iterations: int = 6, inject_mode: str = None, workers: bool = False):
+    """workers=True: after approval the Coordinator also runs the Transit and Outreach agents."""
     request = req.request_text()
     reset_call_log()
     LAST_RUN.clear()
@@ -509,6 +523,7 @@ def run_swarm_loop(req: Requirements, max_iterations: int = 6, inject_mode: str 
     final_status = "CRASH"
     final_plan = None
     warnings: list[str] = []
+    coordination = None
     soft_rejections = 0  # consecutive rejections caused only by soft (cost-level) problems
 
     task_id = f"{datetime.now():%Y%m%d_%H%M%S}_{inject_mode or 'none'}"
@@ -619,7 +634,7 @@ def run_swarm_loop(req: Requirements, max_iterations: int = 6, inject_mode: str 
                 elapsed = time.time() - start_time
                 warnings = list(audit.critique_notes)
                 iterations_log[-1]["forced_approval"] = True
-                handoff(record, "auditor", "user", f"plan approved with {len(warnings)} warning(s)")
+                handoff(record, "auditor", "coordinator" if workers else "user", f"plan approved with {len(warnings)} warning(s)")
                 record.transition(Status.COMPLETED, "auditor", "approved with warnings (only soft problems left)")
                 print(f"\n[APPROVED WITH WARNINGS] Only soft problems remained after {soft_rejections} soft round(s) ({elapsed:.1f}s)")
                 for w in warnings:
@@ -627,17 +642,21 @@ def run_swarm_loop(req: Requirements, max_iterations: int = 6, inject_mode: str 
                 print(f"[STATE PATH] {' -> '.join(record.path_taken())}")
                 log_run(inject_mode, iterations_used, "SUCCESS_WITH_WARNINGS", elapsed, schema_errors)
                 final_status, final_plan = "SUCCESS_WITH_WARNINGS", detailed_plan.model_dump()
+                if workers:
+                    coordination = _coordinate(req, detailed_plan, record)
                 return detailed_plan
 
             if audit.passed:
                 elapsed = time.time() - start_time
-                handoff(record, "auditor", "user", "plan approved")
+                handoff(record, "auditor", "coordinator" if workers else "user", "plan approved")
                 record.transition(Status.COMPLETED, "auditor", "plan approved")
                 print(f"\n[MISSION SUCCESS] Plan APPROVED on Iteration {iteration}! ({elapsed:.1f}s)")
                 print(f"[STATE PATH] {' -> '.join(record.path_taken())}")
                 print(detailed_plan.model_dump_json(indent=2))
                 log_run(inject_mode, iterations_used, "SUCCESS", elapsed, schema_errors)
                 final_status, final_plan = "SUCCESS", detailed_plan.model_dump()
+                if workers:
+                    coordination = _coordinate(req, detailed_plan, record)
                 return detailed_plan
             else:
                 print(f"\n[REJECTED] Blame assigned to: [{audit.failed_agent.upper()}]")
@@ -680,7 +699,7 @@ def run_swarm_loop(req: Requirements, max_iterations: int = 6, inject_mode: str 
     finally:
         _report_llm_stats(record)
         _save_outputs(req, inject_mode, final_status, iterations_log, final_plan, record, warnings, plaus,
-                      skills_summary())
+                      skills_summary(), coordination)
 
 
 if __name__ == "__main__":
@@ -689,6 +708,8 @@ if __name__ == "__main__":
     parser.add_argument("--scenario", default="shenzhen_3day", help="name in scenarios/ or a path to a .json file")
     parser.add_argument("--modes", nargs="*", default=["none", "missing_hub", "budget_spike", "saturation_escalation"],
                         help="fault-injection modes to run ('none' = a normal run)")
+    parser.add_argument("--no-workers", action="store_true",
+                        help="skip the Transit and Outreach agents after approval (faster, loop only)")
     parser.add_argument("--repeats", type=int, default=1, help="run every mode this many times and print a summary table")
     args = parser.parse_args()
     scenario = load_scenario(args.scenario)
@@ -697,7 +718,8 @@ if __name__ == "__main__":
     for n in range(1, args.repeats + 1):
         for mode in args.modes:
             print(f"\n\n########## RUNNING MODE: {mode} (repeat {n}/{args.repeats}) ##########")
-            plan = run_swarm_loop(scenario, max_iterations=6, inject_mode=None if mode == "none" else mode)
+            plan = run_swarm_loop(scenario, max_iterations=6, inject_mode=None if mode == "none" else mode,
+                                  workers=not args.no_workers)
             batch.append(batch_summary.run_row(mode, LAST_RUN, plan))
     if args.repeats > 1 or len(batch) > 1:
         print(batch_summary.save_summary(args.scenario, MODEL_NAME, version_line(), batch))

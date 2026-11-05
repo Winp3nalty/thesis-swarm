@@ -15,7 +15,11 @@ PERMISSIONS: dict[str, set[str]] = {
     "tech_planner": {"logistics"},
     "logistics": {"auditor"},
     # The auditor can send work back to either agent, or release it to the user.
-    "auditor": {"tech_planner", "logistics", "user"},
+    "auditor": {"tech_planner", "logistics", "user", "coordinator"},
+    # After approval the Coordinator (plain code) asks the two worker agents for routes and emails.
+    "coordinator": {"transit", "outreach", "user"},
+    "transit": {"coordinator"},
+    "outreach": {"coordinator"},
 }
 
 
