@@ -51,20 +51,20 @@ def test_handoff_permissions():
     with tempfile.TemporaryDirectory() as tmp:
         r = new_record(tmp)
         lines = []
-        handoff(r, "user", "tech_planner", "request received", printer=lines.append)
-        handoff(r, "auditor", "logistics", "budget fix", printer=lines.append)
-        assert len(lines) == 2 and "[HANDOFF] user -> tech_planner" in lines[0]
+        handoff(r, "dispatcher", "tech_planner", "scenario approved", printer=lines.append)
+        handoff(r, "dispatcher", "logistics", "budget fix", printer=lines.append)
+        assert len(lines) == 2 and "[HANDOFF] dispatcher -> tech_planner" in lines[0]
         try:
-            handoff(r, "tech_planner", "auditor", printer=lines.append)
+            handoff(r, "tech_planner", "justice", printer=lines.append)
         except PermissionDenied:
             pass
         else:
-            raise AssertionError("tech_planner -> auditor must be denied")
+            raise AssertionError("tech_planner -> justice must be denied")
         assert any("DENIED" in e.get("message", "") for e in r.history)
 
 
 def test_souls_load():
-    for agent in ("tech_planner", "logistics", "auditor"):
+    for agent in ("tech_planner", "logistics", "justice"):
         assert load_soul(agent).startswith("# ")
     prompt = build_system_prompt("logistics", extra="Budget: 1200 EUR")
     assert load_soul("logistics") in prompt and "Budget: 1200 EUR" in prompt

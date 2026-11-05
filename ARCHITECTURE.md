@@ -22,10 +22,10 @@ you the finished plan. Limits such as the budget come from you, not from constan
                       Planning (Planner): rough itinerary + task list
                                         │
                                         ▼
-                      Review (Auditor): plausible?  ── no ──► back to Planner (or to you)
+                      Audit: plausible scenario?  ── no ──► back to Planner (or to you)
                                         │ yes
                                         ▼
-                      Dispatch (Coordinator): assign tasks, collect results
+                      Dispatcher: task board, assign tasks, collect results; Justice verifies the plan
                           │            │             │
                        Works        Finance        Rites       (Engineering, Personnel: later)
                     schedule +     costs + FX     outreach
@@ -48,8 +48,9 @@ format as `requirements.json`. The single-prompt baseline reads the same file.
 |---|---|---|---|---|
 | Crown Prince (triage) | Intake agent: asks questions, fills the requirements | LLM for wording, **code** decides when complete | PLANNED | new `intake.py`, `agents/intake/SOUL.md` |
 | Planning Dept | Planner: rough itinerary and task list | LLM | BUILT (itinerary only) | `agent_tech_planner`, `agents/tech_planner/SOUL.md` |
-| Review Dept | Auditor: plausibility gate before planning, then approve or reject the plan and route the blame; approves with warnings after 3 soft-only rounds | code checks, LLM explains | BUILT (`plausibility.py`, `plan_quality.py`, `reality.py`) | `agent_auditor`, `agents/auditor/SOUL.md` |
-| Dispatch Dept | Coordinator: assigns tasks, collects results | mostly **code** | PLANNED (today `run_swarm_loop` does this implicitly) | `run_loop.py`, `handoff.py` |
+| Audit (门下省) | Gatekeeper: plausibility of the scenario only, before any model call | **code** | BUILT v0.9a (`audit.py`, `plausibility.py`) | `agent_audit` |
+| Justice (刑部) | Verifies the finished plan against real data, names who to blame; approves with warnings after 3 soft-only rounds | code checks, LLM explains | BUILT v0.9a (`justice.py`, `plan_quality.py`, `reality.py`) | `agent_justice`, `agents/justice/SOUL.md` |
+| Dispatcher (尚书省) | Task board; hands work to every agent and takes results back; routes Justice's rejections; runs the workers | **code** | BUILT v0.9a (`dispatcher.py`, `handoff.py`) | `Dispatcher`, `TaskBoard` |
 | Works (工部) | schedule, transit | LLM | BUILT | `agent_logistics_specialist`, `workers.agent_transit` |
 | Finance (户部) | budget, costs, exchange rates | **skills** | BUILT | `skills/builtin.py`, `skills/web.py` |
 | Rites (礼部) | outreach emails | LLM | BUILT, not yet connected to the loop | `workers.agent_outreach` |
@@ -63,7 +64,7 @@ code. This is also the answer to "why not more agents?" in the defence.
 
 ## 4. The contract between stages: requirements
 
-`requirements_schema.py` (**BUILT**). The loop, Planner and Auditor read these values; the old constants
+`requirements_schema.py` (**BUILT**). The loop, Planner and Justice read these values; the old constants
 `MAX_BUDGET_EUR`, `REQUIRED_HUBS` and `EXPECTED_DAYS` are gone. A saved scenario lives in
 `scenarios/<name>.json` and every run copies it to `outputs/<run>/requirements.json`:
 
@@ -83,7 +84,7 @@ decides that on its own.
 
 - **Plausibility (Review, before dispatch):** budget against a reference price table
   (`data/cost/<city>.json`), number of days against number of must-visit places, whether the
-  named places exist online. Deterministic. If it fails, the Auditor returns a reason, and you can
+  named places exist online. Deterministic. If it fails, Audit returns a reason, and you can
   change the answers or confirm an override.
 - **Final verification (Justice, after Works):** real places, possible travel gaps, budget
   ceiling, schedule overlaps, a real visit on every day.
@@ -106,7 +107,7 @@ Borrowed ideas and their status are listed in `THIRD_PARTY.md`.
 - Closed-loop state machine with permitted transitions and a JSONL audit log: `state_machine.py`,
   `handoff.py`.
 - One prompt file per agent: `agents/*/SOUL.md`, loaded by `soul_loader.py`.
-- Coordinator (`coordinator.py`): after approval, Transit routes (one per day) and Outreach emails (one per scenario target) run through permission-checked handovers; failures are recorded, never fatal. `--no-workers` skips it.
+- Dispatcher (`dispatcher.py`, replaces `coordinator.py`): after approval, Transit routes (one per day) and Outreach emails (one per scenario target) run through permission-checked handovers; failures are recorded, never fatal. `--no-workers` skips it.
 - Plan quality (v0.8.1): lodging feedback names the nights that lack a charge; `verify_place` rejects an unrelated small hit (a bank for a technology park); scenarios may list `optional_places` for a second daily visit; `practical.py` adds visa/SIM/payment/transport notes from `data/practical/<city>.json` to plan.md.
 - No repeats (v0.8.2): a place may fill one day whenever must-visit plus optional places cover the days; a place the Planner chose but the map does not know is blamed on the Planner; the scenario `team` block (sender name, university, dates) goes into the Outreach emails.
 - Facts for workers (v0.8.3): the Planner is told how many distinct places exist for its visit slots and which are unused; the Transit agent receives OSRM driving times and its minutes are rejected when far outside them; Outreach emails may not claim projects or results for the group; overnight rows belong to the evening.
@@ -120,10 +121,10 @@ Borrowed ideas and their status are listed in `THIRD_PARTY.md`.
 
 1. ~~Requirements schema, `scenarios/shenzhen_3day.json`, and the loop reading them instead of
    constants.~~ **DONE.** (Unblocks the benchmark.)
-2. ~~Plausibility check in the Auditor, replacing the fixed cost minimums.~~ **DONE** (v0.7), together with
+2. ~~Plausibility check in Audit, replacing the fixed cost minimums.~~ **DONE** (v0.7), together with
    the quality checks and the two 7-day scenarios.
 3. Intake agent (fixed question list, model rephrases and extracts answers).
-4. Connect Outreach and Transit to the loop through the Coordinator.
+4. Connect Outreach and Transit to the loop through the Dispatcher. **DONE** (v0.8), hub-and-spoke since v0.9a.
 5. Engineering and Personnel only if time allows. Otherwise they are future work.
 
 ## 8. Open questions for the supervisor and for you
@@ -139,7 +140,7 @@ Borrowed ideas and their status are listed in `THIRD_PARTY.md`.
 - Outreach: invented-claim phrases are matched as whole words ("your research" is not "our research"); the retry after a too-short body shows the previous text.
 
 ## v0.8.5: no invented numbers for the hotel
-- `coordinator.day_stops` leaves out hotels and other generic stops. Their position is unknown, so Transit now routes only between real places, and a day with fewer than two real places gets no Transit file.
+- `dispatcher.day_stops` leaves out hotels and other generic stops. Their position is unknown, so Transit now routes only between real places, and a day with fewer than two real places gets no Transit file.
 - More student-claim phrases are blocked in outreach emails ("currently exploring", "our studies", "we are working on", ...).
 
 ## v0.8.6: length rule matches what the model can do

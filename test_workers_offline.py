@@ -153,7 +153,7 @@ def test_transit_checked_against_driving_time():
 
 
 def test_drive_times_from_osrm_skill():
-    import coordinator
+    import dispatcher
     from requirements_schema import load_scenario
     calls = []
     def fake_skill(name, **kw):
@@ -161,18 +161,18 @@ def test_drive_times_from_osrm_skill():
         if name == "verify_place":
             return {"ok": True, "result": {"found": kw["place"] != "Ghost", "lat": 22.5, "lon": 114.0}}
         return {"ok": True, "result": {"minutes": 12.5}}
-    real = coordinator.run_skill
-    coordinator.run_skill = fake_skill
+    real = dispatcher.run_skill
+    dispatcher.run_skill = fake_skill
     try:
-        out = coordinator.drive_times(["DJI", "Hotel", "OCT Loft", "Ghost"], load_scenario("shenzhen_3day"))
+        out = dispatcher.drive_times(["DJI", "Hotel", "OCT Loft", "Ghost"], load_scenario("shenzhen_3day"))
     finally:
-        coordinator.run_skill = real
+        dispatcher.run_skill = real
     assert out == [None, None, None], out  # Hotel and an unknown place have no coordinates
-    coordinator.run_skill = fake_skill
+    dispatcher.run_skill = fake_skill
     try:
-        assert coordinator.drive_times(["DJI", "OCT Loft"], load_scenario("shenzhen_3day")) == [12.5]
+        assert dispatcher.drive_times(["DJI", "OCT Loft"], load_scenario("shenzhen_3day")) == [12.5]
     finally:
-        coordinator.run_skill = real
+        dispatcher.run_skill = real
 
 
 def test_outreach_rejects_invented_claims():

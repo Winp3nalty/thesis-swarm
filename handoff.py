@@ -11,15 +11,16 @@ from __future__ import annotations
 from state_machine import TaskRecord
 
 PERMISSIONS: dict[str, set[str]] = {
-    "user": {"tech_planner"},
-    "tech_planner": {"logistics"},
-    "logistics": {"auditor"},
-    # The auditor can send work back to either agent, or release it to the user.
-    "auditor": {"tech_planner", "logistics", "user", "coordinator"},
-    # After approval the Coordinator (plain code) asks the two worker agents for routes and emails.
-    "coordinator": {"transit", "outreach", "user"},
-    "transit": {"coordinator"},
-    "outreach": {"coordinator"},
+    # You give the scenario to Audit, which releases it to the Dispatcher or sends it back to you.
+    "user": {"audit"},
+    "audit": {"dispatcher", "user"},
+    # Hub and spoke: the Dispatcher hands work to every agent and takes the result back.
+    "dispatcher": {"tech_planner", "logistics", "justice", "transit", "outreach", "user"},
+    "tech_planner": {"dispatcher"},
+    "logistics": {"dispatcher"},
+    "justice": {"dispatcher"},
+    "transit": {"dispatcher"},
+    "outreach": {"dispatcher"},
 }
 
 

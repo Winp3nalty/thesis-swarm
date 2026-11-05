@@ -8,7 +8,7 @@ real data and sent back for repair until it passes, or ends with the reasons it 
 1. A scenario file (`scenarios/*.json`) describes the trip: city, days, budget, must-visit places.
 2. A plausibility check rejects impossible requests before any model is called.
 3. **Tech Planner** drafts the itinerary, **Logistics** adds times, travel and costs.
-4. **Auditor** checks the plan with deterministic skills (budget, schedule, OpenStreetMap place and
+4. **Justice** (after **Audit** has judged the scenario and the **Dispatcher** has shared the work) checks the plan with deterministic skills (budget, schedule, OpenStreetMap place and
    travel-time checks, price floors) and sends it back to the right agent, up to 6 rounds.
 5. The result is saved under `outputs/<run>/` (`index.md`, `plan.md`, `history.md`, `run.json`)
    with the version, the skills used and the full audit trail.

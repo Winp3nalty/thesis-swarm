@@ -5,13 +5,12 @@ deps.ensure()  # installs pydantic on first run
 from pydantic import BaseModel, ValidationError
 from schemas import RoughItinerary, ExpeditionPlan, AuditResult
 from state_machine import TaskRecord, Status, VALID_TRANSITIONS
-from handoff import handoff
 from soul_loader import build_system_prompt
 from skills import run_skill, reset_call_log, skills_summary
 from reality import reality_check, cost_guide_text, load_cost_reference, _is_generic
 from plan_quality import quality_check, fix_overnight_times, SOFT_MARKERS
-from plausibility import plausibility_check
-from coordinator import run_coordinator
+from audit import agent_audit
+from dispatcher import Dispatcher
 from requirements_schema import Requirements, load_scenario
 from version_info import version_info, version_line
 import batch_summary
@@ -348,8 +347,8 @@ def agent_logistics_specialist(
 
 
 # ==========================================
-# AGENT 3: Chief Auditor Agent (Router + Gatekeeper)
-# (persona and rules live in agents/auditor/SOUL.md)
+# AGENT 3: Justice (verification department; code in justice.py)
+# (persona and rules live in agents/justice/SOUL.md)
 # The hard facts come from deterministic skills, not from the LLM's arithmetic.
 # ==========================================
 def _dedupe_notes(notes: list[str]) -> list[str]:
@@ -364,7 +363,7 @@ def _dedupe_notes(notes: list[str]) -> list[str]:
     return out
 
 
-SOFT_REJECTION_LIMIT = 3  # consecutive soft-only rejections before the Auditor approves with warnings
+SOFT_REJECTION_LIMIT = 3  # consecutive soft-only rejections before Justice approves with warnings
 
 
 def is_soft_note(note: str) -> bool:
@@ -375,93 +374,15 @@ def is_soft_note(note: str) -> bool:
 VERIFY_LOG: list = []  # online checks of the latest audit, saved into the run history
 
 
-def _blame_planner_for_chosen_places(reality: dict, rough_plan: RoughItinerary, req: Requirements) -> None:
-    """A place that the Planner chose (it is in the rough itinerary) and OpenStreetMap does not know is the
-    Planner's problem; Logistics cannot fix it. Places that only appear in the schedule stay with Logistics."""
-    chosen = {h.hub_name.strip().lower() for d in rough_plan.days for h in d.target_hubs}
-    keep = []
-    for issue in reality["logistics_issues"]:
-        m = re.match(r"Place '(.+?)' was not found on OpenStreetMap", issue)
-        if m and m.group(1).strip().lower() in chosen:
-            reality["planner_issues"].append(
-                f"Place '{m.group(1)}' was not found on OpenStreetMap in {req.region}. Replace it with a different "
-                "real place from the optional list or another well-known venue that exists.")
-        else:
-            keep.append(issue)
-    reality["logistics_issues"] = keep
+def agent_auditor(*args, **kwargs):
+    """Old name of the plan checks; they are the Justice agent now (justice.py)."""
+    import justice
+    return justice.agent_justice(*args, **kwargs)
 
 
-def agent_auditor(plan: ExpeditionPlan, req: Requirements, rough_plan: RoughItinerary = None) -> AuditResult:
-    print("  [Agent 3: Auditor Agent] Evaluating feasibility and routing feedback...")
-
-    # --- Skill: budget_check ---
-    all_costs = [act.cost_eur for day in plan.days for act in day.activities]
-    budget = run_skill("budget_check", costs=all_costs, cap=req.budget_eur)["result"]
-    actual_sum = budget["total"]
-
-    # --- Skill: schedule_check (per day) ---
-    schedule_issues = []
-    if len(plan.days) != req.days:
-        schedule_issues.append(f"Plan has {len(plan.days)} day(s) but {req.days} are required.")
-    for day in plan.days:
-        if not day.activities:
-            schedule_issues.append(f"Day {day.day}: no activities planned. Every day needs at least one activity.")
-            continue
-        res = run_skill("schedule_check", activities=[a.model_dump() for a in day.activities])
-        if not res["ok"]:
-            schedule_issues.append(f"Day {day.day}: could not check times ({res['error']}). Use 24-hour HH:MM.")
-        elif not res["result"]["ok"]:
-            schedule_issues.extend(f"Day {day.day}: {issue}" for issue in res["result"]["issues"])
-
-    missing_hubs = _missing_hubs(plan, req.must_visit)
-
-    # --- Reality checks (internet skills): real places, possible travel times, plausible costs ---
-    cost_ref = load_cost_reference(req.cost_profile)
-    reality = reality_check(plan, req.must_visit, req.place_search_names, req.region, cost_ref)
-    quality = quality_check(plan, _is_generic, req.max_days_per_place, cost_ref.get("hotel_night_eur"))
-    reality["planner_issues"] += quality["planner_issues"]
-    reality["logistics_issues"] += quality["logistics_issues"]
-    if rough_plan is not None:
-        _blame_planner_for_chosen_places(reality, rough_plan, req)
-    VERIFY_LOG[:] = reality["log"]
-    for item in reality["log"]:
-        print(f"  [Verify] {item['check']}: {item['name']} -> found={item['found']} ({item['source']}) {item['detail']}")
-
-    system_prompt = build_system_prompt("auditor")
-    user_prompt = (
-        f"Max Allowed Budget: {req.budget_eur:g} EUR\n"
-        f"Actual Summed Cost: {actual_sum:.2f} EUR\n"
-        f"Currently Missing Hubs: {missing_hubs}\n"
-        f"Schedule Problems: {schedule_issues or 'none'}\n"
-        f"Reality Problems: {reality['planner_issues'] + reality['logistics_issues'] or 'none'}\n\n"
-        f"Full Plan:\n{plan.model_dump_json(indent=2)}"
-    )
-    audit = call_structured_llm(system_prompt, user_prompt, AuditResult, temperature=0.0)
-
-    # Deterministic routing & safety net. When the checks found something, THEIR notes are the verdict:
-    # the model's own wording is dropped, because paraphrases like "mostly transit and hotel time" would
-    # not be recognised as soft problems and would restart the soft-rejection count.
-    found = reality["planner_issues"] + reality["logistics_issues"]
-    if missing_hubs:
-        audit.passed = False
-        audit.failed_agent = "tech_planner"
-        audit.critique_notes = [f"Missing mandatory hub: {h}" for h in missing_hubs] + found
-    elif reality["planner_issues"]:
-        audit.passed = False
-        audit.failed_agent = "tech_planner"
-        audit.critique_notes = found
-    elif not budget["within_budget"] or schedule_issues or reality["logistics_issues"]:
-        audit.passed = False
-        audit.failed_agent = "logistics"
-        audit.critique_notes = list(reality["logistics_issues"])
-        if not budget["within_budget"]:
-            audit.critique_notes.append(
-                f"Budget exceeded: {actual_sum:.2f} EUR > {req.budget_eur:g} EUR. Reduce activity or transit costs."
-            )
-        audit.critique_notes.extend(schedule_issues)
-
-    audit.critique_notes = _dedupe_notes(audit.critique_notes)
-    return audit
+def _blame_planner_for_chosen_places(*args, **kwargs):
+    import justice
+    return justice.blame_planner_for_chosen_places(*args, **kwargs)
 
 
 # ==========================================
@@ -521,7 +442,7 @@ SAVE_OUTPUTS = os.environ.get("SWARM_SAVE_OUTPUTS", "1") != "0"
 
 
 def _save_outputs(req, mode, status, iterations, plan, record, warnings=None, plausibility=None, skills_used=None,
-                  coordination=None):
+                  coordination=None, dispatcher=None):
     from practical import load_practical
     """Write plan.md/plan.json/history.md under outputs/<run>/. Never lets saving break a run."""
     if not SAVE_OUTPUTS:
@@ -531,24 +452,29 @@ def _save_outputs(req, mode, status, iterations, plan, record, warnings=None, pl
         d = output_writer.write_swarm_run(req.request_text(), mode or "none", MODEL_NAME, _gpu_name(), status,
                                           iterations, plan, record.log_path, warnings=warnings,
                                           requirements=req.model_dump(), plausibility=plausibility, skills_used=skills_used,
-                                          coordination=coordination, practical=load_practical(req.cost_profile))
+                                          coordination=coordination, practical=load_practical(req.cost_profile),
+                                          dispatcher=dispatcher)
         print(f"[OUTPUT] Readable results saved: {d / 'index.md'}")
     except Exception as e:
         print(f"[OUTPUT] Could not save readable results: {type(e).__name__}: {e}")
 
 
-def _coordinate(req, plan, record):
-    """Run the Coordinator; a problem here must never turn an approved plan into a crash."""
+def _finish_with_dispatcher(dispatcher, plan, workers):
+    """After approval the Dispatcher hands the result to you, with the workers' routes and emails if asked.
+    A problem here must never turn an approved plan into a crash."""
     try:
-        return run_coordinator(req, plan, record)
+        if workers:
+            return dispatcher.run_workers(plan)
+        dispatcher.finish("plan approved")
     except Exception as e:
-        print(f"[COORDINATOR] failed: {type(e).__name__}: {e}")
-        record.note("coordinator", f"failed: {type(e).__name__}: {e}")
-        return None
+        print(f"[DISPATCHER] failed: {type(e).__name__}: {e}")
+        dispatcher.record.note("dispatcher", f"failed: {type(e).__name__}: {e}")
+        dispatcher.board.fail_running(str(e)[:120])
+    return None
 
 
 def run_swarm_loop(req: Requirements, max_iterations: int = 6, inject_mode: str = None, workers: bool = False):
-    """workers=True: after approval the Coordinator also runs the Transit and Outreach agents."""
+    """workers=True: after approval the Dispatcher also runs the Transit and Outreach agents."""
     request = req.request_text()
     reset_call_log()
     LAST_RUN.clear()
@@ -560,6 +486,7 @@ def run_swarm_loop(req: Requirements, max_iterations: int = 6, inject_mode: str 
     final_plan = None
     warnings: list[str] = []
     coordination = None
+    dispatcher = None
     soft_rejections = 0  # consecutive rejections caused only by soft (cost-level) problems
 
     task_id = f"{datetime.now():%Y%m%d_%H%M%S}_{inject_mode or 'none'}"
@@ -583,20 +510,17 @@ def run_swarm_loop(req: Requirements, max_iterations: int = 6, inject_mode: str 
     retrying = False  # True right after a schema error: same agent runs again, no new handoff
 
     try:
-        # Plausibility gate (Review department, before any model call): is the request realistic?
-        plaus = plausibility_check(req)
-        for item in plaus["hard"]:
-            print(f"[PLAUSIBILITY] problem: {item}")
-        for item in plaus["warnings"]:
-            print(f"[PLAUSIBILITY] warning: {item}")
-        record.note("auditor", f"plausibility: {'ok' if plaus['ok'] else 'REJECTED'} | "
-                    + " | ".join(plaus["hard"] + plaus["warnings"]))
+        # Audit: is the scenario realistic? (code only, before any model call)
+        plaus = agent_audit(req, record)
         if not plaus["ok"]:
             print("[REJECTED] The request is not plausible. Change the scenario and run again.")
             _fail(record, "request not plausible")
             final_status = "REJECTED_IMPLAUSIBLE"
             log_run(inject_mode, 0, final_status, time.time() - start_time, 0)
             return None
+        dispatcher = Dispatcher(record, req, workers=workers)
+        dispatcher.plan_tasks()
+        board = dispatcher.board
 
         for iteration in range(1, max_iterations + 1):
             iterations_used = iteration
@@ -606,23 +530,26 @@ def run_swarm_loop(req: Requirements, max_iterations: int = 6, inject_mode: str 
                 run_planner = target_agent == "tech_planner" or rough_plan is None
 
                 if not retrying:
-                    src = "user" if iteration == 1 else "auditor"
-                    summary = ("new expedition request" if iteration == 1
-                               else f"rejected with {len(critique_feedback)} note(s)")
-                    handoff(record, src, "tech_planner" if run_planner else "logistics", summary)
+                    summary = ("scenario approved by Audit" if iteration == 1
+                               else f"rework after Justice: {len(critique_feedback)} note(s)")
+                    dispatcher.give("tech_planner" if run_planner else "logistics", summary)
 
                 if run_planner:
                     _move(record, Status.PLANNING, "tech_planner")
+                    board.start(dispatcher.t_plan)
                     rough_plan = agent_tech_planner(req, rough_plan, critique_feedback)
-                    handoff(record, "tech_planner", "logistics",
-                            f"rough itinerary, {len(rough_plan.days)} day(s)")
+                    board.finish(dispatcher.t_plan, True, f"{len(rough_plan.days)} day(s)")
+                    dispatcher.take("tech_planner", f"rough itinerary, {len(rough_plan.days)} day(s)")
+                    dispatcher.give("logistics", "schedule the rough itinerary")
                     _move(record, Status.SCHEDULING, "logistics")
+                    board.start(dispatcher.t_schedule)
                     detailed_plan = agent_logistics_specialist(rough_plan, req.budget_eur, record=record,
                         cost_ref=cost_ref)
                     logistics_retries = 0
                 else:
                     _move(record, Status.SCHEDULING, "logistics")
                     print(f"  [Router] Skipping Agent 1 -> Direct fix in Agent 2 (Attempt {logistics_retries})...")
+                    board.start(dispatcher.t_schedule)
                     detailed_plan = agent_logistics_specialist(
                         rough_plan, req.budget_eur, detailed_plan, critique_feedback, record=record, cost_ref=cost_ref,
                         temperature=0.7  # a direct fix needs variety, or the model repeats its draft
@@ -636,10 +563,13 @@ def run_swarm_loop(req: Requirements, max_iterations: int = 6, inject_mode: str 
                 total_cost = sum(act.cost_eur for day in detailed_plan.days for act in day.activities)
                 print(f"  [Pipeline Output] Generated {len(detailed_plan.days)} days | Summed Cost: {total_cost:.2f} EUR")
 
-                handoff(record, "logistics", "auditor",
-                        f"{len(detailed_plan.days)} day(s), {total_cost:.2f} EUR")
-                _move(record, Status.REVIEWING, "auditor")
+                board.finish(dispatcher.t_schedule, True, f"{total_cost:.2f} EUR")
+                dispatcher.take("logistics", f"{len(detailed_plan.days)} day(s), {total_cost:.2f} EUR")
+                dispatcher.give("justice", "verify the plan")
+                _move(record, Status.REVIEWING, "justice")
+                board.start(dispatcher.t_verify)
                 audit = agent_auditor(detailed_plan, req, rough_plan)
+                dispatcher.take("justice", "approved" if audit.passed else f"rejected, blame={audit.failed_agent}")
                 retrying = False
                 iterations_log.append({
                     "iteration": iteration, "planner_ran": run_planner, "total_cost": total_cost,
@@ -672,50 +602,36 @@ def run_swarm_loop(req: Requirements, max_iterations: int = 6, inject_mode: str 
                 elapsed = time.time() - start_time
                 warnings = list(audit.critique_notes)
                 iterations_log[-1]["forced_approval"] = True
-                handoff(record, "auditor", "coordinator" if workers else "user", f"plan approved with {len(warnings)} warning(s)")
-                record.transition(Status.COMPLETED, "auditor", "approved with warnings (only soft problems left)")
+                board.finish(dispatcher.t_verify, True, f"approved with {len(warnings)} warning(s)")
+                record.transition(Status.COMPLETED, "justice", "approved with warnings (only soft problems left)")
                 print(f"\n[APPROVED WITH WARNINGS] Only soft problems remained after {soft_rejections} soft round(s) ({elapsed:.1f}s)")
                 for w in warnings:
                     print(f"   ! {w}")
                 print(f"[STATE PATH] {' -> '.join(record.path_taken())}")
                 log_run(inject_mode, iterations_used, "SUCCESS_WITH_WARNINGS", elapsed, schema_errors)
                 final_status, final_plan = "SUCCESS_WITH_WARNINGS", detailed_plan.model_dump()
-                if workers:
-                    coordination = _coordinate(req, detailed_plan, record)
+                coordination = _finish_with_dispatcher(dispatcher, detailed_plan, workers)
                 return detailed_plan
 
             if audit.passed:
                 elapsed = time.time() - start_time
-                handoff(record, "auditor", "coordinator" if workers else "user", "plan approved")
-                record.transition(Status.COMPLETED, "auditor", "plan approved")
+                board.finish(dispatcher.t_verify, True, "approved")
+                record.transition(Status.COMPLETED, "justice", "plan approved")
                 print(f"\n[MISSION SUCCESS] Plan APPROVED on Iteration {iteration}! ({elapsed:.1f}s)")
                 print(f"[STATE PATH] {' -> '.join(record.path_taken())}")
                 print(detailed_plan.model_dump_json(indent=2))
                 log_run(inject_mode, iterations_used, "SUCCESS", elapsed, schema_errors)
                 final_status, final_plan = "SUCCESS", detailed_plan.model_dump()
-                if workers:
-                    coordination = _coordinate(req, detailed_plan, record)
+                coordination = _finish_with_dispatcher(dispatcher, detailed_plan, workers)
                 return detailed_plan
             else:
                 print(f"\n[REJECTED] Blame assigned to: [{audit.failed_agent.upper()}]")
                 for note in audit.critique_notes:
                     print(f"   * {note}")
-                record.note("auditor", f"rejected, blame={audit.failed_agent}: " + " | ".join(audit.critique_notes))
-
-                critique_feedback = audit.critique_notes
-                target_agent = audit.failed_agent
-
-                if target_agent == "logistics":
-                    logistics_retries += 1
-                    cost_too_low_only = soft_only
-                    if logistics_retries >= 2 and not cost_too_low_only:
-                        print("  [ESCALATION] Agent 2 saturated! Escalating fault back to Agent 1...")
-                        target_agent = "tech_planner"
-                        record.note("pipeline", "escalation: logistics saturated, back to tech_planner")
-                        critique_feedback.append(
-                            "ESCALATION: Logistics could not fit your hubs within budget/time constraints. "
-                            "Simplify or redistribute target_hubs across days."
-                        )
+                record.note("justice", f"rejected, blame={audit.failed_agent}: " + " | ".join(audit.critique_notes))
+                board.finish(dispatcher.t_verify, False, f"blame={audit.failed_agent}")
+                target_agent, critique_feedback, logistics_retries = dispatcher.route_rejection(
+                    audit, logistics_retries, soft_only)
 
         elapsed = time.time() - start_time
         print(f"\n[ABORTED] Could not converge within {max_iterations} iterations. ({elapsed:.1f}s)")
@@ -737,7 +653,7 @@ def run_swarm_loop(req: Requirements, max_iterations: int = 6, inject_mode: str 
     finally:
         _report_llm_stats(record)
         _save_outputs(req, inject_mode, final_status, iterations_log, final_plan, record, warnings, plaus,
-                      skills_summary(), coordination)
+                      skills_summary(), coordination, dispatcher)
 
 
 if __name__ == "__main__":

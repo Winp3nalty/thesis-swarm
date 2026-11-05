@@ -76,7 +76,7 @@ def render_plan_md(plan: dict, title: str | None = "Expedition plan", day_level:
 
 def render_iterations_md(iterations: list[dict]) -> str:
     lines = ["# Iteration history", "",
-             "Every draft the agents produced and what the Auditor said about it.", ""]
+             "Every draft the agents produced and what Justice said about it.", ""]
     for it in iterations:
         n = it["iteration"]
         if "error" in it:
@@ -87,7 +87,7 @@ def render_iterations_md(iterations: list[dict]) -> str:
         agents = "Tech Planner, then Logistics" if it["planner_ran"] else "Logistics only (direct fix)"
         lines += [f"## Iteration {n}: {verdict}", "", f"- Agents run: {agents}",
                   f"- Summed cost: {it['total_cost']:.2f} EUR"]
-        lines += [f"- Auditor note: {note}" for note in audit["critique_notes"]]
+        lines += [f"- Justice note: {note}" for note in audit["critique_notes"]]
         if it.get("verification"):
             lines += ["", "<details><summary>Online checks (OpenStreetMap)</summary>", ""]
             for v in it["verification"]:
@@ -105,7 +105,7 @@ def render_iterations_md(iterations: list[dict]) -> str:
 
 def write_swarm_run(request, mode, model, gpu, status, iterations, final_plan, audit_log, root=None,
                     warnings=None, requirements=None, plausibility=None, skills_used=None,
-                    coordination=None, practical=None) -> Path:
+                    coordination=None, practical=None, dispatcher=None) -> Path:
     d = new_run_dir("swarm", model, label=mode, root=root)
     write_text(d / "history.md", render_iterations_md(iterations))
     write_json(d / "history.json", iterations)
@@ -115,13 +115,14 @@ def write_swarm_run(request, mode, model, gpu, status, iterations, final_plan, a
     write_json(d / "run.json", {"request": request, "fault_mode": mode, "model": model, "gpu": gpu,
                                 "status": status, "iterations": len(iterations),
                                 "plausibility": plausibility, "skills_used": skills_used,
-                                "coordination": coordination["summary"] if coordination else None, **version_info()})
+                                "coordination": coordination["summary"] if coordination else None,
+                                "dispatcher": dispatcher.board.as_list() if dispatcher else None, **version_info()})
     index = ["# Swarm run", "", f"- **Version:** {version_line()}", f"- **Status:** {status}", f"- **Fault mode:** {mode}",
              f"- **Model:** {model}", f"- **GPU:** {gpu}", f"- **Iterations:** {len(iterations)}",
              f"- **Audit log (state path and handovers):** `{audit_log}`", "",
              "## Request", "", f"> {request}", ""]
     if plausibility:
-        index += ["## Plausibility check (before planning)", "",
+        index += ["## Audit agent: Plausibility check (before planning)", "",
                   f"- Result: {'passed' if plausibility['ok'] else 'REJECTED'}"]
         index += [f"- Problem: {x}" for x in plausibility["hard"]] + [f"- Warning: {x}" for x in plausibility["warnings"]]
         index += [f"- Cheapest realistic trip: {plausibility['floors']['trip_eur']} EUR"] if plausibility["floors"]["trip_eur"] else []
@@ -132,11 +133,16 @@ def write_swarm_run(request, mode, model, gpu, status, iterations, final_plan, a
             src = ", ".join(f"{k} x{v}" for k, v in sorted(r["sources"].items()))
             index.append(f"| {r['skill']} | {r['calls']} | {r['failed']} | {src} |")
         index.append("")
+    if dispatcher and dispatcher.board.tasks:
+        index += ["## Dispatcher task board", "", "| Task | Agent | Rounds | Status | Note |", "|---|---|---|---|---|"]
+        for t in dispatcher.board.tasks:
+            index.append(f"| {t['id']} {t['task']} | {t['agent']} | {t['rounds']} | {t['status']} | {t['note']} |")
+        index.append("")
     index += ["## Files", ""]
     if final_plan:
         plan_md = render_plan_md(final_plan, title="Approved expedition plan")
         if warnings:
-            plan_md += "\n## Warnings (approved by the Auditor with reservations)\n\n" + "\n".join(f"- {x}" for x in warnings) + "\n"
+            plan_md += "\n## Warnings (approved by Justice with reservations)\n\n" + "\n".join(f"- {x}" for x in warnings) + "\n"
         if practical:
             from practical import practical_md
             plan_md += practical_md(practical)
@@ -147,7 +153,7 @@ def write_swarm_run(request, mode, model, gpu, status, iterations, final_plan, a
     else:
         index.append("- No plan was approved in this run.")
     if coordination:
-        index += ["- Transit routes and outreach emails (Coordinator):"]
+        index += ["- Transit routes and outreach emails (Dispatcher):"]
         for t in coordination["transit"]:
             name = f"transit_{t['case']['id']}.md"
             write_text(d / name, render_transit_md(t["case"], t["info"], t["result"], t["ok"], t["error"]))
@@ -156,7 +162,7 @@ def write_swarm_run(request, mode, model, gpu, status, iterations, final_plan, a
             name = f"outreach_{o['case']['id']}.md"
             write_text(d / name, render_outreach_md(o["case"], o["info"], o["result"], o["ok"], o["error"]))
             index.append(f"  - [{name}]({name}): email to {o['case']['name']}, {'valid' if o['ok'] else 'FAILED'}")
-    index += ["- [history.md](history.md): every draft and the Auditor's verdict",
+    index += ["- [history.md](history.md): every draft and Justice's verdict",
               "- [history.json](history.json): the same data for scripts",
               "- [run.json](run.json): settings and version of this run"]
     if requirements:
