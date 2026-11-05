@@ -18,7 +18,11 @@ from worker_schemas import OutreachEmail, TransitPlan
 
 
 class SemanticError(ValueError):
-    """The JSON matched the schema but the content breaks the task's rules."""
+    """The JSON matched the schema but the content breaks the task's rules. `previous` is the rejected body."""
+
+    def __init__(self, message: str, previous: str | None = None):
+        super().__init__(message)
+        self.previous = previous
 
 
 class WorkerFailed(RuntimeError):
@@ -52,6 +56,13 @@ def _retry_feedback(err: Exception) -> str:
                     "on how the visit can fit the professor's schedule. Do not repeat your previous text." + shown)
         return (f"\n\nYOUR PREVIOUS ANSWER WAS REJECTED: the body had {n} words, but it must have at most 180. "
                 "Shorten it to about 160 words.")
+    if isinstance(err, SemanticError) and err.previous:
+        bad = offending_sentences(err.previous)
+        quoted = ("\nRewrite ONLY these sentences, so that they claim nothing about the students and give no date:\n"
+                  + "\n".join(f'- "{s}"' for s in bad) + "\nKeep every other sentence as it is.\n") if bad else ""
+        return (f"\n\nYOUR PREVIOUS ANSWER WAS REJECTED: {str(err)[:600]}\n"
+                f"Your previous body:\n{err.previous}\n{quoted}"
+                "Answer again with the problems fixed. The body still needs at least 130 words.")
     return (f"\n\nYOUR PREVIOUS ANSWER WAS REJECTED: {str(err)[:600]}\n"
             "Fix these problems and answer again.")
 
@@ -93,7 +104,7 @@ def run_worker(system_prompt, user_prompt, response_model, validator=None, max_r
                 info["first_problems"] = problems
             if not problems:
                 return result, info
-            err = SemanticError("; ".join(problems))
+            err = SemanticError("; ".join(problems), previous=getattr(result, "body", None))
         if info["attempts"] > max_retries:
             raise WorkerFailed(info, err)
         feedback = _retry_feedback(err)
@@ -184,6 +195,19 @@ def claim_sentences(body: str) -> list[str]:
     return found
 
 
+def offending_sentences(body: str) -> list[str]:
+    """The sentences of an email body that break the claim or timing rules, to quote them in the retry prompt."""
+    low_body = _norm(body)
+    bad = list(claim_sentences(body))
+    for sent in re.split(r"(?<=[.!?])\s+", body.strip()):
+        low = _norm(sent)
+        if sent.strip() in bad:
+            continue
+        if any(re.search(rf"\b{re.escape(p)}\b", low) for p in INVENTED_CLAIM_PHRASES) or _TIMING.search(low):
+            bad.append(sent.strip())
+    return bad if low_body else []
+
+
 def validate_outreach(email: OutreachEmail, contact: dict) -> list[str]:
     problems = []
     body = _norm(email.body)
@@ -224,7 +248,7 @@ def validate_outreach(email: OutreachEmail, contact: dict) -> list[str]:
     return problems
 
 
-def agent_outreach(contact: dict, max_retries: int = 2):
+def agent_outreach(contact: dict, max_retries: int = 3):
     print(f"  [Outreach Agent] Drafting email to {contact['name']} ({contact['institution']})...")
     system_prompt = build_system_prompt("outreach")
     user_prompt = (

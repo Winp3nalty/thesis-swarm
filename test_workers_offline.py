@@ -271,6 +271,36 @@ def test_invented_travel_timing_is_rejected_unless_dates_are_given():
     assert "No travel dates are known" in captured["up"]
 
 
+def test_content_retry_shows_previous_body_and_the_bad_sentence():
+    contact = {"name": "Prof. Zhou Mingyu", "institution": "Southern University of Science and Technology",
+               "topics": ["soft robotic grippers"], "city": "Shenzhen"}
+    bad_sentence = "Your findings can inform our studies."
+    body = ("Your work on soft robotic grippers at Southern University of Science and Technology is admired. "
+            + bad_sentence + " " + " ".join(["word"] * 100) + " We ask for a 30-minute lab tour.")
+    prompts = []
+
+    def fake(system_prompt, user_prompt, model, temperature=0.2):
+        prompts.append(user_prompt)
+        if len(prompts) == 1:
+            return OutreachEmail(subject="Lab tour request", greeting="Dear Prof. Zhou Mingyu,", body=body, sign_off="Sincerely")
+        return OutreachEmail(subject="Lab tour request", greeting="Dear Prof. Zhou Mingyu,",
+                             body=body.replace(bad_sentence, "We want to learn from your lab."), sign_off="Sincerely")
+
+    real = run_loop.call_structured_llm
+    run_loop.call_structured_llm = fake
+    try:
+        result, info = workers.agent_outreach(contact)
+    finally:
+        run_loop.call_structured_llm = real
+    assert info["attempts"] == 2 and info["first_semantic_ok"] is False
+    retry = prompts[1]
+    assert "Your previous body:" in retry and body[:60] in retry
+    assert f'- "{bad_sentence}"' in retry and "Rewrite ONLY these sentences" in retry
+    # four attempts are allowed for an email now (three retries)
+    import inspect
+    assert inspect.signature(workers.agent_outreach).parameters["max_retries"].default == 3
+
+
 if __name__ == "__main__":
     tests = [v for k, v in sorted(globals().items()) if k.startswith("test_")]
     for t in tests:
