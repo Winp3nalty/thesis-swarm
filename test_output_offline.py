@@ -1,4 +1,8 @@
 """Offline tests for readable output saving. Run: python test_output_offline.py"""
+import deps
+
+deps.ensure()  # installs pydantic on first run
+
 from requirements_schema import load_scenario
 import json
 import tempfile

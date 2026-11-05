@@ -1,4 +1,8 @@
 """Offline tests for the Week 3 workers (fake model, no Ollama needed). Run: python test_workers_offline.py"""
+import deps
+
+deps.ensure()  # installs pydantic on first run
+
 import json
 import re
 from pathlib import Path

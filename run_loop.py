@@ -1,3 +1,7 @@
+import deps
+
+deps.ensure()  # installs pydantic on first run
+
 from pydantic import BaseModel, ValidationError
 from schemas import RoughItinerary, ExpeditionPlan, AuditResult
 from state_machine import TaskRecord, Status, VALID_TRANSITIONS
@@ -226,6 +230,7 @@ def agent_tech_planner(
     req: Requirements,
     previous_plan: RoughItinerary = None,
     critique_feedback: list[str] = None,
+    temperature: float = 0.2,
 ) -> RoughItinerary:
     print("  [Agent 1: Tech Planner] Designing high-level technical itinerary...")
     system_prompt = build_system_prompt("tech_planner")
@@ -243,7 +248,16 @@ def agent_tech_planner(
             "\nFIX THESE HUB ERRORS WITHOUT REMOVING EXISTING VALID HUBS:\n"
             + "\n".join(f"- {note}" for note in critique_feedback)
         )
-    return call_structured_llm(system_prompt, user_prompt, RoughItinerary)
+    plan = call_structured_llm(system_prompt, user_prompt, RoughItinerary, temperature=temperature)
+    if previous_plan and plan.model_dump() == previous_plan.model_dump():
+        # Same prompt, same feedback, same answer: say so and sample more freely (as Logistics does).
+        print("  [Agent 1] Draft identical to the previous one. Asking again with a warning.")
+        plan = call_structured_llm(
+            system_prompt,
+            user_prompt + "\nYOUR NEW DRAFT WAS IDENTICAL TO THE PREVIOUS ONE, SO THE LISTED PROBLEMS ARE STILL "
+                          "THERE. Change the plan so that each listed problem is fixed.",
+            RoughItinerary, temperature=min(temperature + 0.6, 1.0))
+    return plan
 
 
 # ==========================================
@@ -364,9 +378,9 @@ def agent_auditor(plan: ExpeditionPlan, req: Requirements) -> AuditResult:
     missing_hubs = _missing_hubs(plan, req.must_visit)
 
     # --- Reality checks (internet skills): real places, possible travel times, plausible costs ---
-    reality = reality_check(plan, req.must_visit, req.place_search_names, req.region,
-                            load_cost_reference(req.cost_profile))
-    quality = quality_check(plan, _is_generic, req.max_days_per_place)
+    cost_ref = load_cost_reference(req.cost_profile)
+    reality = reality_check(plan, req.must_visit, req.place_search_names, req.region, cost_ref)
+    quality = quality_check(plan, _is_generic, req.max_days_per_place, cost_ref.get("hotel_night_eur"))
     reality["planner_issues"] += quality["planner_issues"]
     reality["logistics_issues"] += quality["logistics_issues"]
     VERIFY_LOG[:] = reality["log"]

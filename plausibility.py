@@ -11,6 +11,10 @@ Try it on its own:   python plausibility.py shenzhen_7day
 """
 from __future__ import annotations
 
+import deps
+
+deps.ensure()  # installs pydantic on first run
+
 from reality import cost_floors, load_cost_reference
 from skills import run_skill
 

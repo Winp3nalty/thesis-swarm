@@ -13,6 +13,10 @@ Run (from the project folder, inside the venv):
     python test_workers.py --agent transit  # one agent
     python test_workers.py --limit 3        # quick smoke test with 3 cases each
 """
+import deps
+
+deps.ensure()  # installs pydantic on first run
+
 import argparse
 import csv
 import json

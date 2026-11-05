@@ -1,4 +1,8 @@
 """Offline tests (no LLM, no network). Run:  python test_core.py"""
+import deps
+
+deps.ensure()  # installs pydantic on first run
+
 import tempfile
 
 from handoff import PermissionDenied, handoff
@@ -180,6 +184,31 @@ def test_requirements_schema():
     sv, sz7 = load_scenario("silicon_valley_7day"), load_scenario("shenzhen_7day")
     assert (sv.cost_profile, sv.region, sv.max_days_per_place) == ("silicon_valley", "California, USA", 3)
     assert (sz7.days, sz7.max_days_per_place, len(sz7.outreach)) == (7, 2, 2)  # 7 days / 4 hubs -> a place may repeat once
+
+
+def test_deps_ensure():
+    """pydantic is installed automatically when missing, and a failed install says what to run."""
+    import importlib.util
+    import subprocess
+    import deps
+    calls = []
+    real_run, real_find = subprocess.run, importlib.util.find_spec
+    subprocess.run = lambda cmd, **k: (calls.append(cmd), type("R", (), {"returncode": 0})())[1]
+    try:
+        importlib.util.find_spec = lambda name: object()
+        deps.ensure()
+        assert calls == [], "nothing to install when pydantic is present"
+        importlib.util.find_spec = lambda name: None  # still missing after the "install"
+        try:
+            deps.ensure()
+        except SystemExit as e:
+            assert "pip install -r requirements.txt" in str(e)
+        else:
+            raise AssertionError("a failed install must stop with a message")
+        assert calls and calls[0][1:4] == ["-m", "pip", "install"] and calls[0][-1] == str(deps.REQUIREMENTS)
+    finally:
+        subprocess.run, importlib.util.find_spec = real_run, real_find
+    assert deps.REQUIREMENTS.read_text().strip().startswith("pydantic")
 
 
 def test_state_table_consistent():

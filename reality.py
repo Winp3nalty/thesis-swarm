@@ -75,11 +75,16 @@ def reality_check(plan, required_hubs: list[str], search_names: dict | None = No
         return coords[key]
 
     # 1. every day needs at least one real visit
+    last_day = max((d.day for d in plan.days), default=0) if len(plan.days) > 1 else None
     for day in plan.days:
         real = [a for a in day.activities if not _is_generic(a.location)]
         if day.activities and not real:
-            planner.append(f"Day {day.day} has no real visit (only hotel or travel). Plan a visit to a real "
-                           "company, lab, university or market for this day.")
+            if day.day == last_day:  # a departure day is normal, so this one is only a warning
+                planner.append(f"Day {day.day} (the last day) has no real visit, only hotel or travel. A departure "
+                               "day is acceptable; a morning visit to a real place is better.")
+            else:
+                planner.append(f"Day {day.day} has no real visit (only hotel or travel). Plan a visit to a real "
+                               "company, lab, university or market for this day.")
 
     # 2. place existence + description/location consistency
     for day in plan.days:

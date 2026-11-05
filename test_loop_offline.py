@@ -5,6 +5,10 @@ It also works as a demo: it shows every fault mode being caught and corrected.
 Run:  python test_loop_offline.py
 Needs pydantic installed (the setup.ps1 venv has it).
 """
+import deps
+
+deps.ensure()  # installs pydantic on first run
+
 from requirements_schema import load_scenario
 import json
 import os
@@ -264,7 +268,7 @@ def main():
     text = " ".join(r["logistics_issues"] + r["planner_issues"])
     assert "Fake Lab" in text and "not found" in text
     assert "only 10 min between Fake Lab" not in text  # Fake Lab has no coordinates, so no gap check
-    assert "hotel activity" in text and "Day 3 has no real visit" in text and "below the realistic minimum" in text
+    assert "hotel activity" in text and "Day 3 (the last day) has no real visit" in text and "below the realistic minimum" in text
     gap = plan_with([[act("09:00", "10:00", "DJI"), act("10:10", "11:00", "Huaqiangbei")], [act("09:00", "10:00", "DJI", cost=300)],
                      [act("09:00", "10:00", "DJI", cost=300)]])
     assert any("only 10 min between DJI and Huaqiangbei" in i for i in reality.reality_check(gap, hubs)["logistics_issues"])
@@ -280,7 +284,12 @@ def main():
                            [act("09:00", "10:00", "Shenzhen Metro", "Use the metro", 40.0),
                             act("13:00", "14:00", "Hotel", "Lunch", 40.0)]])
     r = reality.reality_check(metro_day, hubs)
-    assert any("Day 3 has no real visit" in i for i in r["planner_issues"]), r
+    assert any("Day 3 (the last day) has no real visit" in i for i in r["planner_issues"]), r
+    assert all(run_loop.is_soft_note(i) for i in r["planner_issues"]), "a departure day without a visit is only a warning"
+    middle = plan_with([[act("09:00", "11:00", "DJI")], [act("09:00", "10:00", "Shenzhen Metro", "Use the metro", 40.0)],
+                        [act("09:00", "11:00", "HAX")]])
+    mid = reality.reality_check(middle, hubs)["planner_issues"]
+    assert any("Day 2 has no real visit" in i for i in mid) and not any(run_loop.is_soft_note(i) for i in mid), mid
     assert not any(v["name"] == "Shenzhen Metro" for v in r["log"]), "transport words must not be looked up as places"
     print("[OK] reality checks: real places, travel gaps, costs, filler days; unreachable web never rejects")
     # Notes are deduplicated; cost-too-low failures are not escalated to the planner; guide reaches Logistics.
@@ -380,6 +389,13 @@ def main():
     assert run_loop.is_soft_note("Place 'X' was not found on OpenStreetMap in Shenzhen, China.")  # weak evidence: a warning
     assert not run_loop.is_soft_note("Day 2: 'Hotel check-in' is a hotel activity but the location says 'DJI'.")
     print("[OK] quality checks: repeats, hotel filler and extra check-ins are found, and are soft")
+    lodging = mkplan([[mkact("DJI"), mkact("Hotel", "Lodging", 110.0), mkact("Hotel", "Lodging", 110.0)],
+                      [mkact("HAX"), mkact("Hotel", "Lodging", 110.0)], [mkact("Huaqiangbei"), mkact("Hotel", "Check-out", 0.0)]])
+    ql = plan_quality.quality_check(lodging, reality._is_generic, 1, hotel_eur=110)["logistics_issues"]
+    assert any("Lodging is charged 3 times (about 110 EUR each), but the trip has only 2 nights" in n for n in ql), ql
+    assert all(run_loop.is_soft_note(n) for n in ql)
+    assert not any("Lodging" in n for n in plan_quality.quality_check(lodging, reality._is_generic, 1)["logistics_issues"])
+    print("[OK] lodging charged more than once per night is found (soft)")
 
     # price floors come from the city's file, not from constants
     sv = load_scenario("silicon_valley_7day")
@@ -482,6 +498,22 @@ def main():
     assert res is not None and "Wangxia Night Market" in plan_md and "Warnings" in plan_md, plan_md
     os.environ["SWARM_OFFLINE"] = "1"
     print("[OK] an unknown venue is a warning in plan.md, not a rejection")
+
+    # v0.7.3: an identical Planner draft is challenged and resampled, like Logistics.
+    pcalls = []
+    prev_rough = fake_llm("", "", RoughItinerary)
+
+    def planner_llm(sp, up, rm, temperature=0.2):
+        pcalls.append((temperature, up))
+        if len(pcalls) == 1:
+            return prev_rough
+        return RoughItinerary.model_validate({**prev_rough.model_dump(), "destination": "Shenzhen, China"})
+
+    run_loop.call_structured_llm = planner_llm
+    out = run_loop.agent_tech_planner(load_scenario("shenzhen_3day"), prev_rough, ["Day 3: fix it"])
+    assert len(pcalls) == 2 and pcalls[0][0] == 0.2 and pcalls[1][0] == 0.8 and "IDENTICAL" in pcalls[1][1], pcalls
+    assert out.destination == "Shenzhen, China"
+    print("[OK] an unchanged Planner draft is challenged and resampled")
     print("\nAll offline loop tests passed.")
 
 
