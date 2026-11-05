@@ -81,7 +81,8 @@ def main():
         result = run_loop.run_swarm_loop(request, max_iterations=6,
                                          inject_mode=None if mode == "none" else mode)
         assert result is not None, f"{mode}: loop did not converge"
-        assert result.total_budget_eur == 600.0, f"{mode}: total not recomputed from activities"
+        # 6 visits x 100 + Finance: 2 nights x 40 + 3 days x (25 meals + 10 transport)
+        assert result.total_budget_eur == 785.0, f"{mode}: total not recomputed from activities"
         path, events = last_path(mode)
         assert path == expected, f"{mode}: expected {expected}, got {path}"
         denied = [e for e in events if "DENIED" in e.get("message", "")]
@@ -299,7 +300,7 @@ def main():
     assert dn == ["Trip total 1 EUR is low.", "Other"], dn
     import reality
     guide = reality.cost_guide_text(3, SZ)
-    assert "days 1 to 2" in guide and "40 EUR" in guide and "at least 185 EUR" in guide, guide  # 3 x 35 + 2 x 40
+    assert "40 EUR per night" in guide and "35 EUR per day" in guide and "Do NOT add Hotel rows" in guide, guide
     captured2 = {}
     run_loop.call_structured_llm = lambda sp, up, rm, temperature=0.2: captured2.setdefault("p", up) and fake_llm(sp, up, rm)
     run_loop.agent_logistics_specialist(fake_llm("", "", RoughItinerary), 1200, cost_ref=SZ)
@@ -392,11 +393,11 @@ def main():
     os.chdir(tempfile.mkdtemp())
 
     def cheap_llm(sp, up, rm, temperature=0.2):
+        # a soft problem that survives every round: DJI is visited again on day 2 (Finance fixes costs by code now)
         out = fake_llm(sp, up, rm)
         if rm is ExpeditionPlan:
-            for d in out.days:
-                for act in d.activities:
-                    act.cost_eur = 10.0
+            out.days[1].activities.append(out.days[0].activities[0].model_copy(
+                update={"start_time": "17:00", "end_time": "18:00"}))
         return out
 
     run_loop.call_structured_llm = cheap_llm
@@ -527,7 +528,7 @@ def main():
     rows = Path("results.csv").read_text().splitlines()
     assert rows[-1].split(",")[4] == "SUCCESS_WITH_WARNINGS" and rows[-1].split(",")[3] == "3", rows[-1]
     plan_md = (sorted(Path("outputs").iterdir())[-1] / "plan.md").read_text(encoding="utf-8")
-    assert "too many hotel activities" not in plan_md and "below the realistic minimum" in plan_md
+    assert "too many hotel activities" not in plan_md and "repeated visit" in plan_md
     # on the last round a soft-only plan is approved with warnings instead of being thrown away
     assert run_loop.run_swarm_loop(load_scenario("shenzhen_3day"), max_iterations=2) is not None
     assert Path("results.csv").read_text().splitlines()[-1].split(",")[3] == "2"

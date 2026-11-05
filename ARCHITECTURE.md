@@ -51,12 +51,13 @@ format as `requirements.json`. The single-prompt baseline reads the same file.
 | Audit (门下省) | Gatekeeper: plausibility of the scenario only, before any model call | **code** | BUILT v0.9a (`audit.py`, `plausibility.py`) | `agent_audit` |
 | Justice (刑部) | Verifies the finished plan against real data, names who to blame; approves with warnings after 3 soft-only rounds | code checks, LLM explains | BUILT v0.9a (`justice.py`, `plan_quality.py`, `reality.py`) | `agent_justice`, `agents/justice/SOUL.md` |
 | Dispatcher (尚书省) | Task board; hands work to every agent and takes results back; routes Justice's rejections; runs the workers | **code** | BUILT v0.9a (`dispatcher.py`, `handoff.py`) | `Dispatcher`, `TaskBoard` |
-| Works (工部) | schedule, transit | LLM | BUILT | `agent_logistics_specialist`, `workers.agent_transit` |
-| Finance (户部) | budget, costs, exchange rates | **skills** | BUILT | `skills/builtin.py`, `skills/web.py` |
-| Rites (礼部) | outreach emails | LLM | BUILT, not yet connected to the loop | `workers.agent_outreach` |
-| Justice (刑部) | verification against real data | **skills** | BUILT | `reality.py`, `skills/web.py` (OpenStreetMap) |
-| Engineering (兵部) | choose which labs and hubs are worth visiting | LLM | merged into the Planner for now | |
-| Personnel (吏部) | who to contact (contact table) | data | PLANNED, optional | |
+| Logistics (工部) | visits, times and visit prices only | LLM | BUILT | `agent_logistics_specialist`, `agents/logistics/SOUL.md` |
+| Finance (户部) | lodging, meals, local transport by rule; cost report in EUR and local currency, Transit estimates compared | **code** | BUILT v0.9b (`finance.py`) | `agent_finance`, `finance_report` |
+| Transit (兵部) | legs between the places of a day, checked against OSRM; order and cluster check | LLM + **code** | BUILT (order check v0.9b, `route_order.py`) | `workers.agent_transit` |
+| Rites (礼部) | outreach emails; sentence-level check against invented claims | LLM + **code** | BUILT, run by the Dispatcher | `workers.agent_outreach` |
+| Local Logistics (吏部) | visa, SIM, payments, transport, each section with named official sources | **code** | BUILT v0.9b (`local_logistics.py`, `data/practical/`) | `agent_local_logistics` |
+| Static Web (工部) | handbook.md and handbook.json from everything the agents produced | **code** | BUILT v0.9b (`static_web.py`) | `agent_static_web` |
+| Engineering | choose which labs and hubs are worth visiting | LLM | merged into the Planner for now | |
 
 Why not make every ministry an LLM agent? Each model call costs time on a local GPU, and small
 models are unreliable at arithmetic and lookups. Finance and Justice are better as deterministic
@@ -111,6 +112,7 @@ Borrowed ideas and their status are listed in `THIRD_PARTY.md`.
 - Plan quality (v0.8.1): lodging feedback names the nights that lack a charge; `verify_place` rejects an unrelated small hit (a bank for a technology park); scenarios may list `optional_places` for a second daily visit; `practical.py` adds visa/SIM/payment/transport notes from `data/practical/<city>.json` to plan.md.
 - No repeats (v0.8.2): a place may fill one day whenever must-visit plus optional places cover the days; a place the Planner chose but the map does not know is blamed on the Planner; the scenario `team` block (sender name, university, dates) goes into the Outreach emails.
 - Facts for workers (v0.8.3): the Planner is told how many distinct places exist for its visit slots and which are unused; the Transit agent receives OSRM driving times and its minutes are rejected when far outside them; Outreach emails may not claim projects or results for the group; overnight rows belong to the evening.
+- Costs by rule (v0.9b): Logistics plans visits only; Finance removes any hotel or meal rows the model wrote, adds one overnight row per night and one daily row for meals and local transport, so Justice no longer sends plans back for hotel or cost-floor problems. After the workers, Finance writes the cost report (Transit estimates above the transport allowance are added) and Static Web builds `handbook.md/json`.
 - Batch runs: `--repeats N` writes outputs/summary_*.md; each run lists the skills it used in index.md.
 - Skills: budget, schedule, live exchange rate, place verification, travel time.
 - Readable outputs per run, and a version label in every result (`version.txt`).

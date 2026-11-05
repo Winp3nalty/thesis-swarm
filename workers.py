@@ -161,6 +161,24 @@ INVENTED_CLAIM_PHRASES = ("our project", "our current", "currently developing", 
                           "our experience in", "our group has", "our team has")
 
 
+_SELF = re.compile(r"\b(we|our|ours|us|the students|the group|the team|this group|our group|our team)\b")
+_DOING = re.compile(r"\b(studying|researching|developing|building|working|investigating|designing|currently|"
+                    r"(?:have|has) (?:been )?(?:studied|worked|developed|built|designed|researched|published|conducted))\b")
+_STUDY_AT = re.compile(r"\bstud(?:y|ies|ying)(?: engineering| robotics)? at\b")
+
+
+def claim_sentences(body: str) -> list[str]:
+    """Sentences where the student group is the subject of work it is doing or has done ("Our group is studying
+    X", "we have been working on Y"). The students may only say that they visit and want to learn, so this is
+    judged per sentence, not by a word list: a phrase list misses every new wording the model finds."""
+    found = []
+    for sent in re.split(r"(?<=[.!?])\s+", body.strip()):
+        low = sent.lower()
+        if _SELF.search(low) and _DOING.search(low) and not _STUDY_AT.search(low):
+            found.append(sent.strip())
+    return found
+
+
 def validate_outreach(email: OutreachEmail, contact: dict) -> list[str]:
     problems = []
     body = _norm(email.body)
@@ -186,6 +204,11 @@ def validate_outreach(email: OutreachEmail, contact: dict) -> list[str]:
     if claims:
         problems.append(f"do not claim any project or result of the student group (found '{claims[0]}'); "
                         "say only that the students are visiting and want to learn")
+    else:
+        sentences = claim_sentences(email.body)
+        if sentences:
+            problems.append("do not claim any project or work of the student group; this sentence does ("
+                            f"'{sentences[0][:120]}'). Say only that the students are visiting and want to learn")
     if "30" not in email.body and "thirty" not in body:
         problems.append("the body must ask for a 30-minute tour")
     return problems

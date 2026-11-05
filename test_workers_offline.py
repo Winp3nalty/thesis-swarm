@@ -229,6 +229,26 @@ def test_outreach_validator_rules():
     assert workers.validate_outreach(given, c) == []  # family name first is accepted
 
 
+def test_claim_check_works_per_sentence():
+    ok = ["Your recent work on drone swarm coordination has advanced the field.",
+          "A small group of engineering students from Aalto University is visiting Shenzhen and seeks to learn.",
+          "We are particularly interested in how distributed sensing enhances swarm coordination.",
+          "The students are keen to observe how your team integrates sensing.",
+          "The students study at Aalto University and are visiting Shenzhen."]
+    bad = ["Our group is studying the intersection of robotics and biomimicry.",
+           "We have been working on swarm robots.", "The students are currently developing a gripper."]
+    assert not any(workers.claim_sentences(x) for x in ok)
+    assert all(workers.claim_sentences(x) for x in bad)
+    contact = {"name": "Prof. Zhou Mingyu", "institution": "Southern University of Science and Technology",
+               "topics": ["soft robotic grippers"], "city": "Shenzhen"}
+    body = ("Your work on soft robotic grippers at Southern University of Science and Technology is admired. "
+            "Our group is studying the intersection of robotics and biomimicry. " + " ".join(["word"] * 100)
+            + " We ask for a 30-minute lab tour.")
+    email = OutreachEmail(subject="Lab tour request", greeting="Dear Prof. Zhou Mingyu,", body=body, sign_off="Sincerely")
+    problems = workers.validate_outreach(email, contact)
+    assert any("Our group is studying" in p for p in problems), problems
+
+
 if __name__ == "__main__":
     tests = [v for k, v in sorted(globals().items()) if k.startswith("test_")]
     for t in tests:

@@ -124,10 +124,19 @@ Results appear as `transit_dayN.md` and `outreach_oNN.md` in the run folder; `--
   ordinary code is cheaper, repeatable and testable. LLMs are used only where language is needed.
 - *Q: Do the worker results change the plan?* Not yet; they add routes and emails next to it.
 
+## 6b. The closing agents (v0.9b)
+All are plain code, started by the Dispatcher after Justice approves, each through a permission-checked handover:
+**`finance.py`** (`agent_finance` before Justice: hotel nights, meals and local transport by rule from `data/cost/<city>.json`;
+`finance_report` after the workers: the cost table, Transit extra, EUR and CNY/USD), **`local_logistics.py`** (visa, SIM, payments,
+transport from `data/practical/<city>.json`; a section without a named official source is reported as a problem),
+**`route_order.py`** (best visiting order and 'not one cluster' legs from measured driving times; advice shown in the Transit
+file), **`static_web.py`** (`handbook.md` and `handbook.json`). *Q: Why did Finance take over the hotel rows?* The model
+wrote them wrongly in every run (extra check-ins, missing nights) and Justice kept sending the plan back; a rule cannot get them wrong.
+
 ## 7. Setup and tests
 **`setup.ps1`**: installs Python venv, packages, Ollama and the model, then runs a script.
 **`deps.py`**: installs pydantic automatically on first run.
-**`test_*.py`**: `test_core.py`, `test_loop_offline.py`, `test_workers_offline.py`, `test_dispatcher_offline.py`, `test_output_offline.py`
+**`test_*.py`**: `test_core.py`, `test_loop_offline.py`, `test_workers_offline.py`, `test_agents_offline.py`, `test_dispatcher_offline.py`, `test_output_offline.py`
 run without a model (fake LLM answers). They cover state rules, scenario validation, every check, every
 fault mode, the soft-approval rules and output files. Run them before every commit.
 

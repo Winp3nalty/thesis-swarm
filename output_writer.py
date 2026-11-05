@@ -107,6 +107,10 @@ def write_swarm_run(request, mode, model, gpu, status, iterations, final_plan, a
                     warnings=None, requirements=None, plausibility=None, skills_used=None,
                     coordination=None, practical=None, dispatcher=None) -> Path:
     d = new_run_dir("swarm", model, label=mode, root=root)
+    final = dispatcher.final if dispatcher and getattr(dispatcher, "final", None) else {}
+    fin = final.get("finance")
+    if final.get("practical") and final["practical"].get("info"):
+        practical = final["practical"]["info"]
     write_text(d / "history.md", render_iterations_md(iterations))
     write_json(d / "history.json", iterations)
     if requirements:
@@ -116,7 +120,10 @@ def write_swarm_run(request, mode, model, gpu, status, iterations, final_plan, a
                                 "status": status, "iterations": len(iterations),
                                 "plausibility": plausibility, "skills_used": skills_used,
                                 "coordination": coordination["summary"] if coordination else None,
-                                "dispatcher": dispatcher.board.as_list() if dispatcher else None, **version_info()})
+                                "dispatcher": dispatcher.board.as_list() if dispatcher else None,
+                                "finance": ({k: fin[k] for k in ("total_eur", "budget_eur", "left_eur", "within_budget", "total_local")}
+                                            | {"currency": (fin["rate"] or {}).get("currency")}) if fin else None,
+                                **version_info()})
     index = ["# Swarm run", "", f"- **Version:** {version_line()}", f"- **Status:** {status}", f"- **Fault mode:** {mode}",
              f"- **Model:** {model}", f"- **GPU:** {gpu}", f"- **Iterations:** {len(iterations)}",
              f"- **Audit log (state path and handovers):** `{audit_log}`", "",
@@ -143,6 +150,9 @@ def write_swarm_run(request, mode, model, gpu, status, iterations, final_plan, a
         plan_md = render_plan_md(final_plan, title="Approved expedition plan")
         if warnings:
             plan_md += "\n## Warnings (approved by Justice with reservations)\n\n" + "\n".join(f"- {x}" for x in warnings) + "\n"
+        if fin:
+            from finance import finance_md
+            plan_md += "\n" + finance_md(fin)
         if practical:
             from practical import practical_md
             plan_md += practical_md(practical)
@@ -162,6 +172,12 @@ def write_swarm_run(request, mode, model, gpu, status, iterations, final_plan, a
             name = f"outreach_{o['case']['id']}.md"
             write_text(d / name, render_outreach_md(o["case"], o["info"], o["result"], o["ok"], o["error"]))
             index.append(f"  - [{name}]({name}): email to {o['case']['name']}, {'valid' if o['ok'] else 'FAILED'}")
+    site = final.get("site")
+    if site:
+        write_text(d / "handbook.md", site["handbook.md"])
+        write_json(d / "handbook.json", site["handbook.json"])
+        index += ["- [handbook.md](handbook.md): everything in one page (Static Web agent)",
+                  "- [handbook.json](handbook.json): the same handbook as data, for the portal"]
     index += ["- [history.md](history.md): every draft and Justice's verdict",
               "- [history.json](history.json): the same data for scripts",
               "- [run.json](run.json): settings and version of this run"]
@@ -198,6 +214,9 @@ def _attempts_md(info: dict) -> list[str]:
 def render_transit_md(case: dict, info: dict, result: dict | None, final_ok: bool, error: str = "") -> str:
     lines = [f"# Transit {case['id']}: {case['city']}", "",
              "**Stops:** " + " → ".join(case["stops"]), "", _status_line(info, final_ok, error), ""]
+    if case.get("order"):
+        from route_order import route_note
+        lines += ["**Order check (measured driving times, advice only):** " + route_note(case["order"]), ""]
     if result:
         lines += ["## Route", "", "| # | From | To | Mode | Minutes | Cost (EUR) |", "|---|---|---|---|---|---|"]
         for i, leg in enumerate(result["legs"], 1):

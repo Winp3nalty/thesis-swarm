@@ -20,5 +20,43 @@
       "The Shenzhen Metro is cheap and covers Futian, Nanshan and the airport; use it for most legs and a taxi for the last kilometres.",
       "Shenzhen North is the high-speed rail station for Guangzhou and Hong Kong West Kowloon."
     ]
+  },
+  "sources": {
+    "Visa and entry": [
+      {
+        "name": "National Immigration Administration of China",
+        "url": "https://www.nia.gov.cn"
+      },
+      {
+        "name": "Hong Kong Immigration Department",
+        "url": "https://www.immd.gov.hk"
+      }
+    ],
+    "SIM and internet": [
+      {
+        "name": "China Mobile",
+        "url": "https://www.10086.cn"
+      }
+    ],
+    "Payments": [
+      {
+        "name": "Alipay (global)",
+        "url": "https://global.alipay.com"
+      },
+      {
+        "name": "WeChat Pay",
+        "url": "https://pay.weixin.qq.com"
+      }
+    ],
+    "Local transport": [
+      {
+        "name": "Shenzhen Metro",
+        "url": "https://www.szmc.net"
+      },
+      {
+        "name": "China Railway 12306",
+        "url": "https://www.12306.cn"
+      }
+    ]
   }
 }

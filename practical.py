@@ -24,5 +24,9 @@ def practical_md(info: dict) -> str:
     lines = ["", "## Practical notes (reference data, verify before travel)", "",
              f"_{info.get('_note', 'Verify these notes before travel.')}_", ""]
     for title, items in info["sections"].items():
-        lines += [f"### {title}", ""] + [f"- {x}" for x in items] + [""]
+        lines += [f"### {title}", ""] + [f"- {x}" for x in items]
+        src = info.get("sources", {}).get(title)
+        if src:
+            lines.append("- Official sources to check: " + "; ".join(f"[{x['name']}]({x['url']})" for x in src))
+        lines.append("")
     return "\n".join(lines)

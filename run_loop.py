@@ -11,6 +11,7 @@ from reality import reality_check, cost_guide_text, load_cost_reference, _is_gen
 from plan_quality import quality_check, fix_overnight_times, SOFT_MARKERS
 from audit import agent_audit
 from dispatcher import Dispatcher
+from finance import agent_finance
 from requirements_schema import Requirements, load_scenario
 from version_info import version_info, version_line
 import batch_summary
@@ -459,18 +460,20 @@ def _save_outputs(req, mode, status, iterations, plan, record, warnings=None, pl
         print(f"[OUTPUT] Could not save readable results: {type(e).__name__}: {e}")
 
 
-def _finish_with_dispatcher(dispatcher, plan, workers):
-    """After approval the Dispatcher hands the result to you, with the workers' routes and emails if asked.
-    A problem here must never turn an approved plan into a crash."""
+def _finish_with_dispatcher(dispatcher, plan, workers, warnings, status):
+    """After approval the Dispatcher runs the workers (if asked), then the closing agents (practical notes, cost
+    report, handbook) and hands the result to you. A problem here must never turn an approved plan into a crash."""
+    coordination = None
     try:
         if workers:
-            return dispatcher.run_workers(plan)
-        dispatcher.finish("plan approved")
+            coordination = dispatcher.run_workers(plan)
+        dispatcher.finalize(plan, coordination, warnings, status)
+        dispatcher.finish("routes, emails and handbook ready" if workers else "plan and handbook ready")
     except Exception as e:
         print(f"[DISPATCHER] failed: {type(e).__name__}: {e}")
         dispatcher.record.note("dispatcher", f"failed: {type(e).__name__}: {e}")
         dispatcher.board.fail_running(str(e)[:120])
-    return None
+    return coordination
 
 
 def run_swarm_loop(req: Requirements, max_iterations: int = 6, inject_mode: str = None, workers: bool = False):
@@ -559,6 +562,13 @@ def run_swarm_loop(req: Requirements, max_iterations: int = 6, inject_mode: str 
                 detailed_plan = _normalize_plan(detailed_plan, record)
                 for note in fix_overnight_times(detailed_plan):
                     record.note("pipeline", note)
+                dispatcher.give("finance", "add lodging, meals and local transport")
+                board.start(dispatcher.t_finance)
+                fin_notes = agent_finance(detailed_plan, cost_ref)
+                board.finish(dispatcher.t_finance, True, fin_notes[0])
+                for note in fin_notes:
+                    record.note("finance", note)
+                dispatcher.take("finance", f"plan total {detailed_plan.total_budget_eur:.2f} EUR")
 
                 total_cost = sum(act.cost_eur for day in detailed_plan.days for act in day.activities)
                 print(f"  [Pipeline Output] Generated {len(detailed_plan.days)} days | Summed Cost: {total_cost:.2f} EUR")
@@ -610,7 +620,7 @@ def run_swarm_loop(req: Requirements, max_iterations: int = 6, inject_mode: str 
                 print(f"[STATE PATH] {' -> '.join(record.path_taken())}")
                 log_run(inject_mode, iterations_used, "SUCCESS_WITH_WARNINGS", elapsed, schema_errors)
                 final_status, final_plan = "SUCCESS_WITH_WARNINGS", detailed_plan.model_dump()
-                coordination = _finish_with_dispatcher(dispatcher, detailed_plan, workers)
+                coordination = _finish_with_dispatcher(dispatcher, detailed_plan, workers, warnings, final_status)
                 return detailed_plan
 
             if audit.passed:
@@ -622,7 +632,7 @@ def run_swarm_loop(req: Requirements, max_iterations: int = 6, inject_mode: str 
                 print(detailed_plan.model_dump_json(indent=2))
                 log_run(inject_mode, iterations_used, "SUCCESS", elapsed, schema_errors)
                 final_status, final_plan = "SUCCESS", detailed_plan.model_dump()
-                coordination = _finish_with_dispatcher(dispatcher, detailed_plan, workers)
+                coordination = _finish_with_dispatcher(dispatcher, detailed_plan, workers, warnings, final_status)
                 return detailed_plan
             else:
                 print(f"\n[REJECTED] Blame assigned to: [{audit.failed_agent.upper()}]")

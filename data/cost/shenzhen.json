@@ -2,5 +2,6 @@
   "_note": "ASSUMPTIONS, not measured facts. Edit these numbers and cite your source in the thesis. The Auditor derives its minimums from them: a day costs at least meals + transport, a trip at least days x (meals + transport) + nights x hotel.",
   "hotel_night_eur": 40,
   "meals_per_day_eur": 25,
-  "local_transport_per_day_eur": 10
+  "local_transport_per_day_eur": 10,
+  "local_currency": "CNY"
 }

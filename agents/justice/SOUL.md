@@ -18,7 +18,8 @@ Judge every plan on four points (adapted from the review department in Edict, MI
 - Unverified places, impossible travel gaps or unrealistically low costs (the telemetry lists
   them as Reality Problems): passed=false, failed_agent="logistics".
 - A place visited on too many days (repeated visit) is a planner problem; a day that is mostly
-  hotel time, or more than one hotel check-in or check-out, is a logistics problem.
+  hotel time is a logistics problem (the Finance agent writes the hotel, meal and transport rows, so those rows are
+  normally correct by construction).
 - Everything satisfied: passed=true, failed_agent="none".
 - Every critique note must be specific and actionable (name the hub, day or amount).
 - Name what to change, never write "needs improvement". Keep the whole verdict short.

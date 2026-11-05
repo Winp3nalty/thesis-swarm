@@ -16,6 +16,7 @@ import json
 import re
 from pathlib import Path
 
+from finance import DAILY_LOCATION
 from plan_quality import lodging_charge_days
 from skills import run_skill
 from skills.builtin import _minutes
@@ -30,6 +31,8 @@ PACE_FACTOR = 0.5  # reject a travel gap only if it is shorter than half the dri
 
 def _is_generic(location: str) -> bool:
     """True for lodging/transport names. Whole words only: 'Business School' is not a bus."""
+    if location == DAILY_LOCATION:  # the row Finance adds for meals and local transport
+        return True
     words = set(re.findall(r"[a-z]+", location.lower()))
     return any(w in words for w in GENERIC_WORDS)
 
@@ -144,18 +147,14 @@ def reality_check(plan, required_hubs: list[str], search_names: dict | None = No
 
 
 def cost_guide_text(num_days: int, ref: dict | None) -> str:
-    """Prompt block that tells Logistics the cost expectations the Auditor will enforce."""
+    """Prompt block that tells Logistics which costs are its own. Finance adds the rest (finance.py)."""
     ref = ref or {}
-    day_min, trip_min = cost_floors(ref, num_days)
+    day_min, _ = cost_floors(ref, num_days)
     if day_min is None:
         return ""
-    nights = max(num_days - 1, 0)
-    lines = ["", "Cost guide (the Auditor rejects plans that ignore it):"]
-    if nights:
-        lines.append(f"- Lodging: on each of days 1 to {nights} add one 'Hotel' row described as 'Overnight stay' (evening, 20:00 or later) costing "
-                     f"{ref['hotel_night_eur']:g} EUR. The last day has no lodging cost. Do not charge lodging twice.")
-    lines += [f"- Meals: about {ref['meals_per_day_eur']:g} EUR per day, as part of the day's activities.",
-              f"- Local transport: about {ref['local_transport_per_day_eur']:g} EUR per day.",
-              f"- Every day must total at least {day_min:g} EUR.",
-              f"- The whole trip must total at least {trip_min:g} EUR (and stay under the budget cap)."]
-    return "\n".join(lines) + "\n"
+    return ("\nCost guide (Finance adds lodging, meals and local transport after you):\n"
+            "- cost_eur is the price of the visit itself only (entrance, workshop, materials); use 0 for a free visit.\n"
+            "- Do NOT add Hotel rows, meal rows or transport rows, and do not put meal or hotel costs into visit rows.\n"
+            f"- Finance will add {ref['hotel_night_eur']:g} EUR per night and "
+            f"{ref['meals_per_day_eur'] + ref['local_transport_per_day_eur']:g} EUR per day for meals and local transport.\n"
+            "- The whole trip, including what Finance adds, must stay under the budget cap.\n")

@@ -17,5 +17,43 @@
       "Public transport is slow between the sites: Caltrain connects San Francisco, Mountain View, Palo Alto and San Jose; BART serves Berkeley and Oakland. A Clipper card works on both.",
       "Most company campuses are far from stations. Plan a rental car or ride-hail for the last leg, and allow for rush-hour traffic on US-101 and I-280."
     ]
+  },
+  "sources": {
+    "Visa and entry": [
+      {
+        "name": "ESTA (US Customs and Border Protection)",
+        "url": "https://esta.cbp.dhs.gov"
+      },
+      {
+        "name": "US Department of State, visas",
+        "url": "https://travel.state.gov"
+      }
+    ],
+    "SIM and internet": [
+      {
+        "name": "T-Mobile (prepaid plans)",
+        "url": "https://www.t-mobile.com"
+      }
+    ],
+    "Payments": [
+      {
+        "name": "US Consumer Financial Protection Bureau",
+        "url": "https://www.consumerfinance.gov"
+      }
+    ],
+    "Local transport": [
+      {
+        "name": "Caltrain",
+        "url": "https://www.caltrain.com"
+      },
+      {
+        "name": "BART",
+        "url": "https://www.bart.gov"
+      },
+      {
+        "name": "Clipper card",
+        "url": "https://www.clippercard.com"
+      }
+    ]
   }
 }
