@@ -36,6 +36,7 @@ class Requirements(BaseModel):
     destination: str = Field(min_length=2, description="City, country, e.g. 'Shenzhen, China'")
     days: int = Field(ge=1, le=14)
     budget_eur: float = Field(gt=0, description="Ceiling for the whole trip and the whole group")
+    hotel: str = Field(default="", description="A hotel named in data/hotels/<city>.json; empty = the first one listed")
     group_size: int = Field(default=1, ge=1, le=50, description="Travellers. All prices in the plan are per person")
     comfort: Literal["budget", "standard"] = "budget"
     must_visit: list[str] = Field(min_length=1, description="Each one must be a real visit")

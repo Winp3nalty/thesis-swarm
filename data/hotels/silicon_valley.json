@@ -1,0 +1,8 @@
+{
+  "_note": "PLACEHOLDERS, not real bookings. Replace each name with a hotel you checked on a booking site (price per person and night should match hotel_night_eur in data/cost/silicon_valley.json). The swarm always uses the FIRST hotel here (or the scenario's \"hotel\" if it names one of these), so the stay does not change between nights or runs.",
+  "hotels": [
+    {"name": "Placeholder Hotel Mountain View (near Caltrain)", "area": "Mountain View"},
+    {"name": "Placeholder Hotel Palo Alto (near Stanford)", "area": "Palo Alto"},
+    {"name": "Placeholder Hostel San Jose (near VTA light rail)", "area": "San Jose"}
+  ]
+}

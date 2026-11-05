@@ -20,6 +20,7 @@ from swarm.code_agents.plan_quality import fix_overnight_times, SOFT_MARKERS
 from swarm.code_agents.audit import agent_audit
 from swarm.code_agents.dispatcher import Dispatcher
 from swarm.code_agents.finance import agent_finance
+from swarm.code_agents.hotels import choose_hotel
 from swarm.code_agents.meal_times import fix_meal_times, load_meals
 from swarm.llm_agents import client
 from swarm.llm_agents.tech_planner import agent_tech_planner
@@ -237,6 +238,9 @@ def run_swarm_loop(req: Requirements, max_iterations: int = 6, inject_mode: str 
     plaus = None
     cost_ref = load_cost_reference(req.cost_profile)
     meals = load_meals(req.cost_profile)
+    hotel = choose_hotel(req.cost_profile, req.hotel)  # one hotel for the whole trip, chosen by rule
+    if hotel:
+        record.note("pipeline", f"hotel: {hotel['name']}")
     critique_feedback = []
     rough_plan = None
     detailed_plan = None
@@ -297,7 +301,7 @@ def run_swarm_loop(req: Requirements, max_iterations: int = 6, inject_mode: str 
                     record.note("pipeline", note)
                 dispatcher.give("finance", "add lodging, meals and local transport")
                 board.start(dispatcher.t_finance)
-                fin_notes = agent_finance(detailed_plan, cost_ref, meals_windows=meals)
+                fin_notes = agent_finance(detailed_plan, cost_ref, meals_windows=meals, chosen_hotel=hotel)
                 board.finish(dispatcher.t_finance, True, fin_notes[0])
                 for note in fin_notes:
                     record.note("finance", note)

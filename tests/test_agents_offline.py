@@ -233,6 +233,25 @@ def test_place_must_be_in_the_region_of_the_trip():
     assert not out["logistics_issues"] and any("Place 'Helsinki' is" in i for i in out["planner_issues"]), out
 
 
+def test_one_hotel_for_the_whole_trip():
+    from swarm.code_agents import hotels
+    from swarm.code_agents.finance import agent_finance, is_lodging
+    from swarm.code_agents.reality import _is_generic
+    sz = hotels.load_hotels("shenzhen")
+    assert len(sz) >= 2 and hotels.load_hotels("nowhere") == [] and hotels.choose_hotel("nowhere") is None
+    first = hotels.choose_hotel("shenzhen")
+    assert first == sz[0] and hotels.choose_hotel("shenzhen") == first, "same hotel every time"
+    assert hotels.choose_hotel("shenzhen", sz[1]["name"].upper()) == sz[1], "the scenario can name another listed hotel"
+    assert hotels.choose_hotel("shenzhen", "Not A Listed Hotel") == first
+    assert load_scenario("shenzhen_7day").hotel == ""
+    plan = _plan([[_act("DJI", "09:00", "10:00")], [_act("HAX", "09:00", "10:00")], [_act("InnoX", "09:00", "10:00")]])
+    agent_finance(plan, {"hotel_night_eur": 40, "meals_per_day_eur": 25, "local_transport_per_day_eur": 10},
+                  printer=lambda *_: None, chosen_hotel=first)
+    rows = [a for d in plan.days for a in d.activities if a.location.startswith("Hotel")]
+    assert len(rows) == 2 and {a.location for a in rows} == {f"Hotel: {first['name']}"}, rows
+    assert all(is_lodging(a) and _is_generic(a.location) for a in rows), "the named hotel still counts as lodging"
+
+
 def test_meal_times_are_mandatory():
     from swarm.code_agents import meal_times
     from swarm.code_agents.finance import agent_finance

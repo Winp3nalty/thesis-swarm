@@ -91,7 +91,11 @@ def test_loop_with_workers():
         assert "Cost report" in (run / "plan.md").read_text(encoding="utf-8")
         assert s["transit_modes_set"] > 0, s  # v0.9.7: Transit's mode replaces Logistics' first guess in the plan
         planmd = (run / "plan.md").read_text(encoding="utf-8")
-        assert "from hotel" in planmd and "Metro" in planmd, "transit modes not written into plan.md"
+        assert "not planned (from hotel)" in planmd and "Metro" in planmd, "transit modes not written into plan.md"
+        assert "Hotel: Placeholder Hotel Nanshan" in planmd, "the chosen hotel is not named in the overnight rows"
+        assert planmd.count("Hotel: ") == 2 and len({l.split("|")[2].strip() for l in planmd.splitlines() if "| Hotel: " in l}) == 1, \
+            "one hotel for the whole trip"
+        assert "**Hotel:** Placeholder Hotel Nanshan" in (run / "handbook.md").read_text(encoding="utf-8")
         assert "Order check" in (run / "transit_day1.md").read_text(encoding="utf-8")
         assert "Practical notes" in (run / "plan.md").read_text(encoding="utf-8"), "visa and SIM section missing"
         events = [json.loads(l) for l in sorted(Path("logs").glob("audit_*.jsonl"))[-1].read_text().splitlines()]

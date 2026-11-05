@@ -12,6 +12,7 @@ import json
 from swarm.core.paths import DATA_DIR
 
 _DIR = DATA_DIR / "transit"
+FIRST_VISIT_LABEL = "not planned (from hotel)"  # the trip from the hotel to the first visit has no planned mode
 
 
 def load_transit_modes(profile: str) -> dict:
@@ -50,11 +51,11 @@ def mode_problem(mode: str, rules: dict, city: str, leg_no: int) -> str | None:
 
 def write_modes_into_plan(plan, day_number: int, stop_activities: list, legs: list, rules: dict) -> int:
     """Set each visit's transit_mode to the mode of the leg that reaches it. The first visit of the day is reached
-    from the hotel (Transit plans no leg for it). Returns how many visits were set."""
+    from the hotel: Transit plans no leg for it, so it is labelled FIRST_VISIT_LABEL. Returns how many visits were set."""
     day = next((d for d in plan.days if d.day == day_number), None)
     if day is None or len(stop_activities) != len(legs) + 1:
         return 0
-    stop_activities[0].transit_mode = "from hotel"
+    stop_activities[0].transit_mode = FIRST_VISIT_LABEL
     for act, leg in zip(stop_activities[1:], legs):
         act.transit_mode = canonical_mode(leg["mode"], rules) or leg["mode"]
     return len(stop_activities)

@@ -27,6 +27,9 @@ def agent_static_web(plan: dict, req, status: str, finance: dict | None, local: 
 
     lines = [f"# Expedition handbook: {req.destination}", "",
              f"- **Status:** {status}", f"- **Budget:** {req.budget_eur:g} EUR" + (f" for {req.group_size} travellers" if req.group_size > 1 else ""), f"- **Version:** {version}", ""]
+    hotel = next((a["location"][7:] for d in plan["days"] for a in d["activities"] if a["location"].startswith("Hotel: ")), "")
+    if hotel:
+        lines[-1:] = [f"- **Hotel:** {hotel}", ""]
     if warnings:
         lines += ["## Warnings (plan approved with reservations)", ""] + [f"- {w}" for w in warnings] + [""]
     lines += [render_plan_md(plan, title=None, day_level=2), ""]

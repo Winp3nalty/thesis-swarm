@@ -50,6 +50,7 @@ OpenStreetMap. `python -m swarm.code_agents.plausibility <scenario>` shows this 
 - v0.9.8: the budget is per person (`group_size`; `budget_eur` is the group's ceiling), and a place must lie within `radius_km` of the city centre in `data/geo/<city>.json` (`geo.py`). A name not found in the region is looked up once without it, so Helsinki for a Shenzhen trip is caught.
 
 **`meal_times.py`** and **`data/culture/<city>.json`**: breakfast, lunch and dinner windows (placeholder hours, to be confirmed with the supervisor). Code trims visits that run into a window before Finance runs; Justice reports what is left as a soft note; the Finance meals row sits in the lunch window.
+**`hotels.py`** and **`data/hotels/<city>.json`**: one hotel for the whole trip, chosen by rule (the scenario's `hotel`, else the first listed), so it is the same every night and every run. The names are placeholders until you replace them. Finance writes it into the overnight rows.
 **`transit_modes.py`** and **`data/transit/<city>.json`**: the modes that exist in a city. The Transit agent must choose one (code rejects others, such as BART in Shenzhen), and the Dispatcher writes the chosen mode into the plan.
 
 ## 2. The loop (`run_loop.py`; the model calls are in `swarm/llm_agents/`, `client.py` talks to Ollama)

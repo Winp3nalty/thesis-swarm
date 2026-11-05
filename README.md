@@ -21,7 +21,7 @@ real data and sent back for repair until it passes, or ends with the reasons it 
 python -m swarm.code_agents.plausibility shenzhen_7day         # check a scenario and its place names
 python tests/test_core.py; python tests/test_loop_offline.py   # offline tests, no model needed
 ```
-Scenario fields worth knowing: `group_size` (travellers; `budget_eur` is for the whole group and every price in the plan is per person), `place_coordinates`, `place_search_names`, `optional_places`, `team`.
+Scenario fields worth knowing: `hotel` (a name from `data/hotels/<city>.json`; empty = the first one), `group_size` (travellers; `budget_eur` is for the whole group and every price in the plan is per person), `place_coordinates`, `place_search_names`, `optional_places`, `team`.
 `scenarios/shenzhen_wrong_place.json` is a deliberate test: it contains Helsinki, and the plausibility gate must stop it (this needs internet; offline the place is only reported as unverified).
 A place OpenStreetMap cannot find (for example HAX) can get coordinates in the scenario: `"place_coordinates": {"HAX": [lat, lon]}` (copy them from a map). Then its driving times are measured too.
 Choose the model in `model.txt` (default `qwen3:8b`, needs Ollama). Set `SWARM_OFFLINE=1` to avoid internet calls.
@@ -39,7 +39,7 @@ swarm/
   output/        output_writer (outputs/<run>/ files), batch_summary (summary_*.md)
   skills/        deterministic tools: budget and schedule checks, OpenStreetMap, OSRM, exchange rate
 prompts/<agent>/SOUL.md   the persona and rules of each model-driven agent
-data/  cost/ transit/ geo/ culture/ practical/ per city; scenarios/  tests/  docs/
+data/  cost/ transit/ geo/ culture/ hotels/ practical/ per city; scenarios/  tests/  docs/
 ```
 
 ## Where to read more

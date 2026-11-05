@@ -13,7 +13,7 @@ A worker that fails never fails the expedition plan: the failure is recorded and
 from __future__ import annotations
 
 from swarm.core.handoff import handoff
-from swarm.code_agents.transit_modes import load_transit_modes, write_modes_into_plan
+from swarm.code_agents.transit_modes import FIRST_VISIT_LABEL, load_transit_modes, write_modes_into_plan
 from swarm.llm_agents.outreach import agent_outreach
 from swarm.llm_agents.transit import agent_transit
 from swarm.skills import run_skill
@@ -217,6 +217,10 @@ class Dispatcher:
                 day = next(d for d in plan.days if d.day == t["case"]["day"])
                 set_modes += write_modes_into_plan(plan, t["case"]["day"], stop_activities(day), t["result"]["legs"],
                                                    mode_rules)
+        for day in plan.days:  # a day with one visit gets no Transit run, but its first visit is reached from the hotel too
+            acts = stop_activities(day)
+            if acts:
+                acts[0].transit_mode = FIRST_VISIT_LABEL
         if set_modes:
             self.record.note("dispatcher", f"transit modes written into the plan for {set_modes} visit(s)")
         legs = [leg for t in transit if t["ok"] for leg in t["result"]["legs"]]

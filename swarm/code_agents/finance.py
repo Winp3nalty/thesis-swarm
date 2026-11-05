@@ -10,6 +10,7 @@ cost report: visits, meals, transport, lodging, the total against the budget, EU
 """
 from __future__ import annotations
 
+from swarm.code_agents.hotels import hotel_label
 from swarm.core.schemas import DetailedActivity
 from swarm.skills import run_skill
 
@@ -57,7 +58,8 @@ def _free_slot(acts, length: int = 30, preferred: int = 750) -> tuple[str, str]:
     return _hhmm(best), _hhmm(best + length)
 
 
-def agent_finance(plan, cost_ref: dict, printer=print, meals_windows: dict | None = None) -> list[str]:
+def agent_finance(plan, cost_ref: dict, printer=print, meals_windows: dict | None = None,
+                  chosen_hotel: dict | None = None) -> list[str]:
     """Rewrite the plan's non-visit rows in place. Returns what changed (for the audit log)."""
     notes = []
     hotel, meals, transport = (cost_ref.get("hotel_night_eur"), cost_ref.get("meals_per_day_eur"),
@@ -76,7 +78,7 @@ def agent_finance(plan, cost_ref: dict, printer=print, meals_windows: dict | Non
             continue
         if i < nights:
             what = "Hotel check-in and overnight stay" if i == 0 else "Overnight stay"
-            d.activities.append(DetailedActivity(start_time="20:00", end_time="23:59", location="Hotel",
+            d.activities.append(DetailedActivity(start_time="20:00", end_time="23:59", location=hotel_label(chosen_hotel),
                                                  activity_description=what, transit_mode="none", cost_eur=float(hotel)))
         lunch = (meals_windows or {}).get("lunch")  # the meals row sits in the lunch window when there is one
         start, end = _free_slot(d.activities, *( (lunch[1] - lunch[0], lunch[0]) if lunch else () ))

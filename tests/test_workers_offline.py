@@ -184,7 +184,7 @@ def test_transit_modes_are_written_into_the_plan():
     plan = NS(days=[NS(day=1)])
     legs = [{"mode": "Caltrain to Palo Alto"}, {"mode": "uber"}]
     assert write_modes_into_plan(plan, 1, acts, legs, rules) == 3
-    assert [a.transit_mode for a in acts] == ["from hotel", "Caltrain", "Ride-hail"]
+    assert [a.transit_mode for a in acts] == ["not planned (from hotel)", "Caltrain", "Ride-hail"]
     keep = [NS(transit_mode="car"), NS(transit_mode="car")]
     assert write_modes_into_plan(plan, 1, keep, [], rules) == 0 and keep[0].transit_mode == "car", \
         "no matching legs (route failed): Logistics' value stays"

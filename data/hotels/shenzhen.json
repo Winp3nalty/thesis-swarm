@@ -1,0 +1,8 @@
+{
+  "_note": "PLACEHOLDERS, not real bookings. Replace each name with a hotel you checked on a booking site (price per person and night should match hotel_night_eur in data/cost/shenzhen.json). The swarm always uses the FIRST hotel here (or the scenario's \"hotel\" if it names one of these), so the stay does not change between nights or runs.",
+  "hotels": [
+    {"name": "Placeholder Hotel Nanshan (near the Science Park)", "area": "Nanshan"},
+    {"name": "Placeholder Hotel Futian (near Huaqiangbei)", "area": "Futian"},
+    {"name": "Placeholder Hostel Luohu (near the border)", "area": "Luohu"}
+  ]
+}
