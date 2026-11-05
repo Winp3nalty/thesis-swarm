@@ -29,6 +29,7 @@ Choose the model in `model.txt` (default `qwen3:8b`, needs Ollama). Set `SWARM_O
 ## Project layout
 ```
 run_loop.py            the main program (start here)
+publish_site.py        turns finished runs into the pages of the portal (site/, VitePress)
 swarm/
   core/          state machine, handoffs, schemas, scenario format, prompt loader, version stamp, paths
   llm_agents/    the agents that call the model, one file each: tech_planner, logistics, justice, transit, outreach
@@ -41,6 +42,15 @@ swarm/
 prompts/<agent>/SOUL.md   the persona and rules of each model-driven agent
 data/  cost/ transit/ geo/ culture/ hotels/ practical/ per city; scenarios/  tests/  docs/
 ```
+
+## Portal (VitePress on GitHub Pages)
+```powershell
+python publish_site.py                 # latest run per scenario: outputs/ -> site/ (emails left out; --with-emails to include)
+cd site; npm install; npm run dev      # preview at http://localhost:5173/thesis-swarm/  (needs Node.js 18+)
+```
+Commit `site/` and push: `.github/workflows/deploy.yml` builds it and publishes it to GitHub Pages
+(one-time: repository Settings > Pages > Source: "GitHub Actions"). The site is public, so check a page before pushing it.
+Tests: `python tests/test_site_offline.py`.
 
 ## Where to read more
 - [docs/CODE_TOUR.md](docs/CODE_TOUR.md): every module in plain words, with likely questions and answers

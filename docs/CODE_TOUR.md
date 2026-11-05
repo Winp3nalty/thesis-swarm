@@ -156,9 +156,10 @@ file), **`static_web.py`** (`handbook.md` and `handbook.json`). *Q: Why did Fina
 wrote them wrongly in every run (extra check-ins, missing nights) and Justice kept sending the plan back; a rule cannot get them wrong.
 
 ## 7. Setup and tests
+**`publish_site.py`** and **`site/`**: the portal. The script copies the latest approved run of each scenario (and the batch summaries) into VitePress pages; the GitHub Actions workflow builds and publishes them. Emails are left out unless `--with-emails`.
 **`setup.ps1`**: installs Python venv, packages, Ollama and the model, then runs a script.
 **`core/deps.py`**: installs pydantic automatically on first run.
-**`tests/test_*.py`** (run as `python tests/test_core.py`): `test_core.py`, `test_loop_offline.py`, `test_workers_offline.py`, `test_agents_offline.py`, `test_dispatcher_offline.py`, `test_output_offline.py`
+**`tests/test_*.py`** (run as `python tests/test_core.py`): `test_core.py`, `test_loop_offline.py`, `test_workers_offline.py`, `test_agents_offline.py`, `test_dispatcher_offline.py`, `test_output_offline.py`, `test_site_offline.py`
 run without a model (fake LLM answers). They cover state rules, scenario validation, every check, every
 fault mode, the soft-approval rules and output files. Run them before every commit.
 
