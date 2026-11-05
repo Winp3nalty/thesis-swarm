@@ -229,6 +229,36 @@ def test_state_table_consistent():
         assert Status.FAILED in VALID_TRANSITIONS[st], f"{st} must be able to fail"
 
 
+def test_skills_call_log_and_batch_summary():
+    """Every run_skill call is logged per skill; the batch summary groups repeated runs by mode."""
+    import tempfile
+    import skills
+    from schemas import ExpeditionPlan, DetailedDay, DetailedActivity
+    import batch_summary
+    skills.reset_call_log()
+    skills.run_skill("budget_check", costs=[10, 20], cap=100)
+    skills.run_skill("budget_check", costs=[1], cap=100)
+    skills.run_skill("no_such_skill")
+    rows = {r["skill"]: r for r in skills.skills_summary()}
+    assert rows["budget_check"]["calls"] == 2 and rows["budget_check"]["failed"] == 0
+    assert rows["no_such_skill"]["failed"] == 1
+    skills.reset_call_log()
+    assert skills.skills_summary() == []
+
+    act = DetailedActivity(start_time="09:00", end_time="10:00", location="X", activity_description="d",
+                           transit_mode="Walk", cost_eur=40.0)
+    plan = ExpeditionPlan(destination="D", duration_days=1, total_budget_eur=100,
+                          days=[DetailedDay(day=1, focus_topic="t", activities=[act])])
+    ok = batch_summary.run_row("none", {"status": "SUCCESS", "iterations": 2, "wall_clock_s": 30.0}, plan)
+    bad = batch_summary.run_row("none", {"status": "ABORTED_MAX_ITER", "iterations": 6, "wall_clock_s": 90.0}, None)
+    assert ok["cost_eur"] == 40.0 and bad["cost_eur"] is None
+    text = "\n".join(batch_summary.summarize([ok, bad]))
+    assert "SUCCESS x1" in text and "ABORTED_MAX_ITER x1" in text and "| none | 2 |" in text
+    with tempfile.TemporaryDirectory() as tmp:
+        out = batch_summary.save_summary("shenzhen_7day", "m", "v", [ok, bad], root=tmp)
+        assert list(__import__("pathlib").Path(tmp).glob("summary_shenzhen_7day_*.md")) and "[SUMMARY]" in out
+
+
 if __name__ == "__main__":
     tests = [v for k, v in sorted(globals().items()) if k.startswith("test_")]
     for t in tests:

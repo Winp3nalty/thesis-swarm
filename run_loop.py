@@ -7,12 +7,13 @@ from schemas import RoughItinerary, ExpeditionPlan, AuditResult
 from state_machine import TaskRecord, Status, VALID_TRANSITIONS
 from handoff import handoff
 from soul_loader import build_system_prompt
-from skills import run_skill
+from skills import run_skill, reset_call_log, skills_summary
 from reality import reality_check, cost_guide_text, load_cost_reference, _is_generic
 from plan_quality import quality_check, SOFT_MARKERS
 from plausibility import plausibility_check
 from requirements_schema import Requirements, load_scenario
 from version_info import version_info, version_line
+import batch_summary
 import csv
 import json
 import os
@@ -61,6 +62,8 @@ def log_run(inject_mode, iterations, status, wall_clock_s, schema_errors):
             os.replace(RESULTS_FILE, backup)
             print(f"[RESULTS] Old results file had a different format, renamed to {backup}")
 
+    LAST_RUN.clear()
+    LAST_RUN.update({"status": status, "iterations": iterations, "wall_clock_s": wall_clock_s})
     file_exists = os.path.exists(RESULTS_FILE)
     with open(RESULTS_FILE, "a", newline="") as f:
         writer = csv.writer(f)
@@ -84,6 +87,7 @@ def log_run(inject_mode, iterations, status, wall_clock_s, schema_errors):
 OLLAMA_URL = "http://localhost:11434"
 NUM_CTX = int(os.environ.get("SWARM_NUM_CTX", "8192"))
 CALL_TIMEOUT_S = 900  # a cold model load plus generation can take minutes
+LAST_RUN: dict = {}  # outcome of the most recent run, read by the --repeats summary
 CALL_STATS: list[dict] = []  # per-call timing and token counts, flushed into the audit log
 
 def _read_model_file(path=None):
@@ -480,7 +484,7 @@ def _fail(record: TaskRecord, note: str) -> None:
 SAVE_OUTPUTS = os.environ.get("SWARM_SAVE_OUTPUTS", "1") != "0"
 
 
-def _save_outputs(req, mode, status, iterations, plan, record, warnings=None, plausibility=None):
+def _save_outputs(req, mode, status, iterations, plan, record, warnings=None, plausibility=None, skills_used=None):
     """Write plan.md/plan.json/history.md under outputs/<run>/. Never lets saving break a run."""
     if not SAVE_OUTPUTS:
         return
@@ -488,7 +492,7 @@ def _save_outputs(req, mode, status, iterations, plan, record, warnings=None, pl
         import output_writer
         d = output_writer.write_swarm_run(req.request_text(), mode or "none", MODEL_NAME, _gpu_name(), status,
                                           iterations, plan, record.log_path, warnings=warnings,
-                                          requirements=req.model_dump(), plausibility=plausibility)
+                                          requirements=req.model_dump(), plausibility=plausibility, skills_used=skills_used)
         print(f"[OUTPUT] Readable results saved: {d / 'index.md'}")
     except Exception as e:
         print(f"[OUTPUT] Could not save readable results: {type(e).__name__}: {e}")
@@ -496,6 +500,8 @@ def _save_outputs(req, mode, status, iterations, plan, record, warnings=None, pl
 
 def run_swarm_loop(req: Requirements, max_iterations: int = 6, inject_mode: str = None):
     request = req.request_text()
+    reset_call_log()
+    LAST_RUN.clear()
     start_time = time.time()
     schema_errors = 0
     iterations_used = 0
@@ -673,7 +679,8 @@ def run_swarm_loop(req: Requirements, max_iterations: int = 6, inject_mode: str 
 
     finally:
         _report_llm_stats(record)
-        _save_outputs(req, inject_mode, final_status, iterations_log, final_plan, record, warnings, plaus)
+        _save_outputs(req, inject_mode, final_status, iterations_log, final_plan, record, warnings, plaus,
+                      skills_summary())
 
 
 if __name__ == "__main__":
@@ -682,9 +689,15 @@ if __name__ == "__main__":
     parser.add_argument("--scenario", default="shenzhen_3day", help="name in scenarios/ or a path to a .json file")
     parser.add_argument("--modes", nargs="*", default=["none", "missing_hub", "budget_spike", "saturation_escalation"],
                         help="fault-injection modes to run ('none' = a normal run)")
+    parser.add_argument("--repeats", type=int, default=1, help="run every mode this many times and print a summary table")
     args = parser.parse_args()
     scenario = load_scenario(args.scenario)
 
-    for mode in args.modes:
-        print(f"\n\n########## RUNNING MODE: {mode} ##########")
-        run_swarm_loop(scenario, max_iterations=6, inject_mode=None if mode == "none" else mode)
+    batch = []
+    for n in range(1, args.repeats + 1):
+        for mode in args.modes:
+            print(f"\n\n########## RUNNING MODE: {mode} (repeat {n}/{args.repeats}) ##########")
+            plan = run_swarm_loop(scenario, max_iterations=6, inject_mode=None if mode == "none" else mode)
+            batch.append(batch_summary.run_row(mode, LAST_RUN, plan))
+    if args.repeats > 1 or len(batch) > 1:
+        print(batch_summary.save_summary(args.scenario, MODEL_NAME, version_line(), batch))

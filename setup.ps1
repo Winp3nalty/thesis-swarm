@@ -210,7 +210,7 @@ if ($LASTEXITCODE -ne 0) { Fail "Could not pull $model (disk quota or network?).
 # 7. Make sure the project files are present
 # ---------------------------------------------------------------
 foreach ($f in @($Script, "run_loop.py", "schemas.py", "state_machine.py", "handoff.py", "soul_loader.py",
-                 "worker_schemas.py", "workers.py", "output_writer.py", "model.txt", "version.txt", "version_info.py", "reality.py", "plan_quality.py", "plausibility.py", "requirements_schema.py", "scenarios\shenzhen_3day.json", "scenarios\shenzhen_7day.json", "scenarios\silicon_valley_7day.json", "data\cost\shenzhen.json", "data\cost\silicon_valley.json", "tests\w3_cases.json",
+                 "worker_schemas.py", "workers.py", "output_writer.py", "model.txt", "version.txt", "version_info.py", "reality.py", "plan_quality.py", "plausibility.py", "batch_summary.py", "deps.py", "requirements.txt", "requirements_schema.py", "scenarios\shenzhen_3day.json", "scenarios\shenzhen_7day.json", "scenarios\silicon_valley_7day.json", "data\cost\shenzhen.json", "data\cost\silicon_valley.json", "tests\w3_cases.json",
                  "skills\__init__.py", "skills\builtin.py", "skills\web.py",
                  "agents\tech_planner\SOUL.md", "agents\logistics\SOUL.md", "agents\auditor\SOUL.md",
                  "agents\transit\SOUL.md", "agents\outreach\SOUL.md")) {

@@ -104,7 +104,7 @@ def render_iterations_md(iterations: list[dict]) -> str:
 
 
 def write_swarm_run(request, mode, model, gpu, status, iterations, final_plan, audit_log, root=None,
-                    warnings=None, requirements=None, plausibility=None) -> Path:
+                    warnings=None, requirements=None, plausibility=None, skills_used=None) -> Path:
     d = new_run_dir("swarm", model, label=mode, root=root)
     write_text(d / "history.md", render_iterations_md(iterations))
     write_json(d / "history.json", iterations)
@@ -113,7 +113,7 @@ def write_swarm_run(request, mode, model, gpu, status, iterations, final_plan, a
     from version_info import version_info, version_line
     write_json(d / "run.json", {"request": request, "fault_mode": mode, "model": model, "gpu": gpu,
                                 "status": status, "iterations": len(iterations),
-                                "plausibility": plausibility, **version_info()})
+                                "plausibility": plausibility, "skills_used": skills_used, **version_info()})
     index = ["# Swarm run", "", f"- **Version:** {version_line()}", f"- **Status:** {status}", f"- **Fault mode:** {mode}",
              f"- **Model:** {model}", f"- **GPU:** {gpu}", f"- **Iterations:** {len(iterations)}",
              f"- **Audit log (state path and handovers):** `{audit_log}`", "",
@@ -123,6 +123,12 @@ def write_swarm_run(request, mode, model, gpu, status, iterations, final_plan, a
                   f"- Result: {'passed' if plausibility['ok'] else 'REJECTED'}"]
         index += [f"- Problem: {x}" for x in plausibility["hard"]] + [f"- Warning: {x}" for x in plausibility["warnings"]]
         index += [f"- Cheapest realistic trip: {plausibility['floors']['trip_eur']} EUR"] if plausibility["floors"]["trip_eur"] else []
+        index.append("")
+    if skills_used:
+        index += ["## Skills used in this run", "", "| Skill | Calls | Failed | Answers from |", "|---|---|---|---|"]
+        for r in skills_used:
+            src = ", ".join(f"{k} x{v}" for k, v in sorted(r["sources"].items()))
+            index.append(f"| {r['skill']} | {r['calls']} | {r['failed']} | {src} |")
         index.append("")
     index += ["## Files", ""]
     if final_plan:
