@@ -9,6 +9,10 @@
     "HAX",
     "Huaqiangbei"
   ],
+  "place_coordinates": {
+    "HAX": [22.5431, 113.9344],
+    "InnoX": [22.5300, 113.9400]
+  },
   "optional_places": [
     "Southern University of Science and Technology",
     "Shenzhen University",
