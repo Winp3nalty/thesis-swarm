@@ -9,11 +9,18 @@
     "Computer History Museum"
   ],
   "optional_places": [
-    "Googleplex",
-    "Apple Park Visitor Center",
-    "NASA Ames Research Center",
-    "Intel Museum",
-    "The Tech Interactive"
+  "Googleplex",
+  "Apple Park Visitor Center",
+  "NASA Ames Research Center",
+  "Intel Museum",
+  "The Tech Interactive",
+  "NVIDIA Headquarters",
+  "Tesla Factory",
+  "SRI International",
+  "Lawrence Berkeley National Laboratory",
+  "Intuitive Surgical",
+  "Hewlett-Packard Garage",
+  "Meta Headquarters"
   ],
   "interests": "robotics, embodied AI research, startups",
   "outreach": [
@@ -41,5 +48,9 @@
   },
   "notes": "Local transport by BART and Caltrain.",
   "search_region": "California, USA",
-  "place_search_names": {}
+  "place_search_names": {},
+  "place_coordinates": {
+  "NASA Ames Research Center": [37.4152, -122.0627]
+}
+  
 }
