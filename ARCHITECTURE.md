@@ -137,3 +137,7 @@ Borrowed ideas and their status are listed in `THIRD_PARTY.md`.
 - Overnight rows: `plan_quality.fix_overnight_times` sets the "Overnight stay" row to 20:00-23:59 after the Logistics agent answers (only when every other row ends by 20:00). The change is logged as a pipeline note. The soft check stays as a safety net.
 - Missing nights: `quality_check` reports days (except the last) without an overnight stay (soft note).
 - Outreach: invented-claim phrases are matched as whole words ("your research" is not "our research"); the retry after a too-short body shows the previous text.
+
+## v0.8.5: no invented numbers for the hotel
+- `coordinator.day_stops` leaves out hotels and other generic stops. Their position is unknown, so Transit now routes only between real places, and a day with fewer than two real places gets no Transit file.
+- More student-claim phrases are blocked in outreach emails ("currently exploring", "our studies", "we are working on", ...).

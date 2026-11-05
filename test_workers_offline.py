@@ -195,6 +195,8 @@ def test_invented_claim_check_uses_whole_words():
     assert not any("do not claim" in p for p in workers.validate_outreach(email, contact))
     mine = email.model_copy(update={"body": body.replace("Your research", "Our research")})
     assert any("our research" in p for p in workers.validate_outreach(mine, contact))
+    soft = email.model_copy(update={"body": body + " Our group is currently exploring similar concepts in our studies."})
+    assert any("do not claim" in p for p in workers.validate_outreach(soft, contact))
     # a too-short body: the retry shows the previous text so the model can extend it
     try:
         OutreachEmail(subject="Lab tour request", greeting="Dear X,", body="a short text of only a few words but over forty characters", sign_off="Bye")

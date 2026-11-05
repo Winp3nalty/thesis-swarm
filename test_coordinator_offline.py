@@ -40,9 +40,9 @@ def scenario_with_outreach():
 
 def test_day_stops():
     acts = [DetailedActivity(start_time="09:00", end_time="10:00", location=loc, activity_description="x",
-                             transit_mode="Walk", cost_eur=1) for loc in ["Hotel", "DJI", "dji", "HAX"] + [f"P{i}" for i in range(8)]]
+                             transit_mode="Walk", cost_eur=1) for loc in ["Hotel", "DJI", "dji", "HAX", "Hotel"] + [f"P{i}" for i in range(8)]]
     stops = coordinator.day_stops(DetailedDay(day=1, focus_topic="t", activities=acts))
-    assert stops[:3] == ["Hotel", "DJI", "HAX"], "a repeated place back to back is listed once"
+    assert stops[:3] == ["DJI", "HAX", "P0"], "hotels are left out; a repeated place back to back is listed once"
     assert len(stops) == coordinator.MAX_STOPS_PER_DAY
 
 

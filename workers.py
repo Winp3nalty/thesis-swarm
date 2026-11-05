@@ -155,7 +155,9 @@ def agent_transit(city: str, stops: list[str], day: int = 1, max_retries: int = 
 # ==========================================
 INVENTED_CLAIM_PHRASES = ("our project", "our current", "currently developing", "our research", "our work on",
                           "we are developing", "we have developed", "we are building", "our team has built",
-                          "our own projects", "our thesis")
+                          "our own projects", "our thesis", "currently exploring", "currently working",
+                          "exploring similar", "our studies", "we are working on", "we have been working",
+                          "our experience in", "our group has", "our team has")
 
 
 def validate_outreach(email: OutreachEmail, contact: dict) -> list[str]:

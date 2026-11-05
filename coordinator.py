@@ -15,11 +15,13 @@ MAX_STOPS_PER_DAY = 6
 
 
 def day_stops(day) -> list[str]:
-    """Locations of one day in visiting order; a place repeated back to back is listed once."""
+    """Real places of one day in visiting order; a place repeated back to back is listed once. A hotel or other
+    generic stop is left out: its position is unknown, so any route to it would be an invented number."""
+    from reality import _is_generic
     stops: list[str] = []
     for act in day.activities:
         loc = act.location.strip()
-        if loc and (not stops or stops[-1].lower() != loc.lower()):
+        if loc and not _is_generic(loc) and (not stops or stops[-1].lower() != loc.lower()):
             stops.append(loc)
     return stops[:MAX_STOPS_PER_DAY]
 
