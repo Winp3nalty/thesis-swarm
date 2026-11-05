@@ -154,6 +154,12 @@ def validate_outreach(email: OutreachEmail, contact: dict) -> list[str]:
     name_words = [_norm(w) for w in contact["name"].replace(".", " ").split() if _norm(w) not in ("prof", "professor", "dr")]
     if not any(w in _norm(email.greeting) for w in name_words):
         problems.append(f"the greeting must address the professor by name ('{contact['name']}')")
+    sender = contact.get("sender_name", "").strip()
+    if sender and not any(_norm(w) in _norm(email.sign_off) for w in sender.split()):
+        problems.append(f"the sign-off must include the sender's name ('{sender}')")
+    univ = contact.get("sender_university", "").strip()
+    if univ and not any(w in body for w in (_key_words(univ, _GENERIC_WORDS) or {_norm(univ)})):
+        problems.append(f"the body must say that the group comes from '{univ}'")
     if "30" not in email.body and "thirty" not in body:
         problems.append("the body must ask for a 30-minute tour")
     return problems
@@ -169,6 +175,10 @@ def agent_outreach(contact: dict, max_retries: int = 2):
         f"The greeting MUST use the professor's name exactly as written above (e.g. 'Dear {contact['name']},').\n"
         f"Recent research topics: {'; '.join(contact['topics'])}\n"
         f"Expedition: a small group of engineering students visiting {contact['city']}.\n"
+        + (f"The group studies at {contact['sender_university']}; the body must say so.\n" if contact.get("sender_university") else "")
+        + (f"Planned travel time: {contact['trip_dates']}.\n" if contact.get("trip_dates") else "")
+        + (f"The sender is {contact['sender_name']}; the sign_off must be a closing phrase followed by this name.\n" if contact.get("sender_name") else "")
+        +
         f"Paragraph 1 MUST contain the words \"{contact['institution']}\".\n"
         "Length: write about 165 words in three paragraphs; the body must have at least 150 words.\n"
     )

@@ -182,8 +182,8 @@ def test_requirements_schema():
     # derived values used by the loop
     assert (req.region, req.cost_profile, req.max_days_per_place) == ("Shenzhen, China", "shenzhen", 1)
     sv, sz7 = load_scenario("silicon_valley_7day"), load_scenario("shenzhen_7day")
-    assert (sv.cost_profile, sv.region, sv.max_days_per_place) == ("silicon_valley", "California, USA", 3)
-    assert (sz7.days, sz7.max_days_per_place, len(sz7.outreach)) == (7, 2, 2)  # 7 days / 4 hubs -> a place may repeat once
+    assert (sv.cost_profile, sv.region, sv.max_days_per_place) == ("silicon_valley", "California, USA", 1)
+    assert (sz7.days, sz7.max_days_per_place, len(sz7.outreach)) == (7, 1, 2)  # 4 hubs + optional places cover 7 days -> no repeats
 
 
 def test_deps_ensure():
@@ -285,6 +285,15 @@ def test_verify_place_rejects_unrelated_small_hit():
         web._WEB_CACHE, web._nominatim, web.time.sleep = old[:3]
         if old[3] is not None:
             os.environ["SWARM_OFFLINE"] = old[3]
+
+
+def test_max_days_per_place_and_team():
+    from requirements_schema import load_scenario
+    base = load_scenario("shenzhen_7day")
+    few = base.model_copy(update={"optional_places": []})
+    assert few.max_days_per_place == 2, "4 places for 7 days: a repeat is unavoidable"
+    assert base.max_days_per_place == 1
+    assert base.team.sender_university == "Aalto University" and base.team.sender_name == ""
 
 
 def test_practical_notes():

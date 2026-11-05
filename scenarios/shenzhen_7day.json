@@ -14,7 +14,10 @@
     "Shenzhen University",
     "Tencent Binhai Building",
     "Shenzhen Science and Technology Museum",
-    "OCT Loft"
+    "OCT Loft",
+    "Shenzhen Bay Science and Technology Ecological Park",
+    "Nanshan Science and Technology Park",
+    "SEG Electronics Market"
   ],
   "interests": "robotics, drones, hardware startups, electronics sourcing",
   "outreach": [
@@ -35,7 +38,18 @@
       ]
     }
   ],
+  "team": {
+    "sender_name": "",
+    "sender_university": "Aalto University",
+    "trip_dates": ""
+  },
   "notes": "Include practical visa and SIM guidance in the notes.",
   "search_region": "Shenzhen, China",
-  "place_search_names": {}
+  "place_search_names": {
+    "Tencent Binhai Building": "腾讯滨海大厦",
+    "Shenzhen Science and Technology Museum": "深圳科学技术馆",
+    "Shenzhen Bay Science and Technology Ecological Park": "深圳湾科技生态园",
+    "Nanshan Science and Technology Park": "南山科技园",
+    "SEG Electronics Market": "赛格电子市场"
+  }
 }

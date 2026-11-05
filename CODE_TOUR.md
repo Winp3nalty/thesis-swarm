@@ -103,6 +103,10 @@ second visit per day.
 - *Q: Why not let the model write the visa advice?* Entry rules change and a model can state them confidently
   and wrongly; fixed text with a source to check is honest and repeatable.
 
+**`team` in the scenario**: sender name, university and travel dates. The Outreach agent must sign with the
+sender's name and mention the university, so an email is ready to send once `sender_name` and `trip_dates` are filled in.
+`max_days_per_place` is 1 whenever must-visit plus optional places are at least as many as the days.
+
 ## 6. Workers and the Coordinator
 **`workers.py`, `worker_schemas.py`**: Transit (legs between stops) and Outreach (email requesting a lab
 tour) agents with the same schema-plus-retry pattern. `test_workers.py` measures first-attempt valid JSON.

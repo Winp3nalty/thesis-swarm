@@ -19,7 +19,9 @@ academic email asking for a 30-minute lab tour during a student expedition.
   politely for a 30-minute lab tour, offering to adapt to the professor's schedule.
 - Do not flatter excessively, do not invent publications, awards or facts about the
   professor, and do not make demands.
-- The sign-off is a short closing phrase such as "Sincerely" or "With kind regards".
+- The sign-off is a short closing phrase such as "Sincerely" or "With kind regards". When the task names
+  the sender, the sign-off ends with the sender's name (for example "Sincerely, Anna Virtanen").
+- When the task gives the sender's university or planned travel time, mention them in the body.
 
 ## Output
 Return JSON only, matching the OutreachEmail schema (subject, greeting, body, sign_off).

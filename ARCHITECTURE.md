@@ -108,6 +108,7 @@ Borrowed ideas and their status are listed in `THIRD_PARTY.md`.
 - One prompt file per agent: `agents/*/SOUL.md`, loaded by `soul_loader.py`.
 - Coordinator (`coordinator.py`): after approval, Transit routes (one per day) and Outreach emails (one per scenario target) run through permission-checked handovers; failures are recorded, never fatal. `--no-workers` skips it.
 - Plan quality (v0.8.1): lodging feedback names the nights that lack a charge; `verify_place` rejects an unrelated small hit (a bank for a technology park); scenarios may list `optional_places` for a second daily visit; `practical.py` adds visa/SIM/payment/transport notes from `data/practical/<city>.json` to plan.md.
+- No repeats (v0.8.2): a place may fill one day whenever must-visit plus optional places cover the days; a place the Planner chose but the map does not know is blamed on the Planner; the scenario `team` block (sender name, university, dates) goes into the Outreach emails.
 - Batch runs: `--repeats N` writes outputs/summary_*.md; each run lists the skills it used in index.md.
 - Skills: budget, schedule, live exchange rate, place verification, travel time.
 - Readable outputs per run, and a version label in every result (`version.txt`).

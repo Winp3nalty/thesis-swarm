@@ -49,10 +49,11 @@ def plausibility_check(req) -> dict:
             warnings.append(f"'{hub}' was not found on OpenStreetMap (searched '{query}, {req.region}'). "
                             "Check the spelling or add a better search text under place_search_names in the scenario.")
     for place in req.optional_places:
-        res = run_skill("verify_place", place=place, city=req.region)
+        query = aliases.get(place.lower(), place)
+        res = run_skill("verify_place", place=query, city=req.region)
         r = res.get("result", {}) if res["ok"] else {"found": None, "source": "error"}
         log.append({"check": "optional place", "name": place, "found": r.get("found"), "source": r.get("source"),
-                    "detail": f"searched '{place}, {req.region}'"})
+                    "detail": f"searched '{query}, {req.region}'"})
         if r.get("found") is False:
             warnings.append(f"Optional place '{place}' was not found on OpenStreetMap. Remove it from optional_places "
                             "or find a better spelling, so the Planner is not offered a place the Auditor will flag.")

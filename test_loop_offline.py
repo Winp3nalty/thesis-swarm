@@ -329,6 +329,18 @@ def main():
     run_loop.agent_tech_planner(opt_req)
     assert "two real visits per day" in seen["p"] and "Shenzhen University" in seen["p"], seen["p"]
     print("[OK] lodging hint names the missing nights; the Planner is offered optional places")
+    # A place the Planner chose and the map does not know goes back to the Planner; one only Logistics wrote stays.
+    rough = RoughItinerary.model_validate({"destination": "Shenzhen", "days": [
+        {"day": 1, "focus_topic": "x", "target_hubs": [{"hub_name": "Ghost Lab", "purpose": "p"}]}]})
+    rez = {"planner_issues": [], "logistics_issues": [
+        "Place 'Ghost Lab' was not found on OpenStreetMap in Shenzhen, China. If it is a meal ...",
+        "Place 'Invented Cafe' was not found on OpenStreetMap in Shenzhen, China. If it is a meal ...",
+        "Day 1: only 5 min between A and B"]}
+    run_loop._blame_planner_for_chosen_places(rez, rough, load_scenario("shenzhen_3day"))
+    assert len(rez["planner_issues"]) == 1 and "Ghost Lab" in rez["planner_issues"][0]
+    assert run_loop.is_soft_note(rez["planner_issues"][0]), "still a soft note"
+    assert len(rez["logistics_issues"]) == 2 and "Invented Cafe" in rez["logistics_issues"][0]
+    print("[OK] unknown places chosen by the Planner are blamed on the Planner")
     os.environ.pop("SWARM_OFFLINE")
     calls3 = []
 

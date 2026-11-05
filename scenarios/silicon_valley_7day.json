@@ -34,6 +34,11 @@
       ]
     }
   ],
+  "team": {
+    "sender_name": "",
+    "sender_university": "Aalto University",
+    "trip_dates": ""
+  },
   "notes": "Local transport by BART and Caltrain.",
   "search_region": "California, USA",
   "place_search_names": {}

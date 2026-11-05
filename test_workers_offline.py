@@ -116,6 +116,22 @@ def test_worker_failed_after_retries():
         raise AssertionError("must fail after exhausting retries")
 
 
+def test_outreach_sender_rules():
+    contact = {"name": "Prof. Liang Haotian", "institution": "Shenzhen University", "topics": ["drone swarm"],
+               "city": "Shenzhen", "sender_name": "Anna Virtanen", "sender_university": "Aalto University"}
+    body = ("We admire your drone swarm work at Shenzhen University. " + " ".join(["word"] * 100)
+            + " We study at Aalto University and ask for a 30-minute lab tour.")
+    good = OutreachEmail(subject="Lab tour request", greeting="Dear Prof. Liang Haotian,", body=body,
+                         sign_off="Sincerely, Anna Virtanen")
+    assert workers.validate_outreach(good, contact) == []
+    anonymous = good.model_copy(update={"sign_off": "Sincerely"})
+    assert any("sign-off" in p for p in workers.validate_outreach(anonymous, contact))
+    no_univ = good.model_copy(update={"body": body.replace("Aalto University", "our school")})
+    assert any("Aalto University" in p for p in workers.validate_outreach(no_univ, contact))
+    plain = {k: v for k, v in contact.items() if not k.startswith("sender")}
+    assert workers.validate_outreach(anonymous, plain) == [], "no sender given: no extra rules"
+
+
 def test_outreach_validator_rules():
     c = CASES["outreach"][2]  # SUSTech case, uses an alias
     good = good_llm("", f"Institution: {c['institution']}\nProfessor: {c['name']}\n"

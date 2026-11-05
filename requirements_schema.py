@@ -25,6 +25,13 @@ class OutreachTarget(BaseModel):
     topics: list[str] = Field(min_length=1)
 
 
+class TeamInfo(BaseModel):
+    """Who is travelling. Used in the Outreach emails; every field is optional."""
+    sender_name: str = ""
+    sender_university: str = ""
+    trip_dates: str = Field(default="", description="free text, e.g. 'the second week of March 2027'")
+
+
 class Requirements(BaseModel):
     destination: str = Field(min_length=2, description="City, country, e.g. 'Shenzhen, China'")
     days: int = Field(ge=1, le=14)
@@ -33,6 +40,7 @@ class Requirements(BaseModel):
     must_visit: list[str] = Field(min_length=1, description="Each one must be a real visit")
     interests: str = ""
     outreach: list[OutreachTarget] = Field(default_factory=list)
+    team: TeamInfo = Field(default_factory=TeamInfo)
     notes: str = ""
     search_region: str = Field(default="", description="Region added to online place lookups; defaults to destination")
     optional_places: list[str] = Field(
@@ -65,8 +73,10 @@ class Requirements(BaseModel):
 
     @property
     def max_days_per_place(self) -> int:
-        """A place may be visited on this many days; more than one only if there are fewer hubs than days."""
-        return max(1, math.ceil(self.days / len(self.must_visit)))
+        """A place may be visited on this many days. One, whenever the must-visit and optional places are at
+        least as many as the days; more only if there are fewer places than days."""
+        places = len(self.must_visit) + len(self.optional_places)
+        return 1 if places >= self.days else max(1, math.ceil(self.days / places))
 
     def request_text(self) -> str:
         """The request as plain text for the prompts, the audit log and the output files."""

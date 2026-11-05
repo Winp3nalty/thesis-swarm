@@ -51,7 +51,7 @@ def run_coordinator(req, plan, record: TaskRecord, printer=print) -> dict:
                             lambda c=case: workers.agent_transit(c["city"], c["stops"], day=c["day"]),
                             record, printer))
     for i, target in enumerate(req.outreach, 1):
-        case = {"id": f"o{i:02d}", "city": req.city, **target.model_dump()}
+        case = {"id": f"o{i:02d}", "city": req.city, **req.team.model_dump(), **target.model_dump()}
         outreach.append(_run("outreach", case, lambda c=case: workers.agent_outreach(c), record, printer))
     handoff(record, "coordinator", "user", "routes and emails ready", printer=printer)
 

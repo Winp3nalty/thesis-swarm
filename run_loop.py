@@ -16,6 +16,7 @@ from requirements_schema import Requirements, load_scenario
 from version_info import version_info, version_line
 import batch_summary
 import csv
+import re
 import json
 import os
 import subprocess
@@ -243,7 +244,8 @@ def agent_tech_planner(
         f"User Request: {req.request_text()}\n"
         f"Mandatory hubs (each one must be visited; use these exact names): {', '.join(req.must_visit)}\n"
         f"Plan exactly {req.days} days. Every day needs a real visit, and a place may appear on at most "
-        f"{req.max_days_per_place} day(s). If there are fewer mandatory hubs than days, add other real "
+        f"{req.max_days_per_place} day(s); a 'revisit' of a place already used on another day does not count as "
+        "a visit, so a day with one new place is better than a day with a repeated one. If there are fewer mandatory hubs than days, add other real "
         f"companies, labs or universities in {req.region}.\n"
         "Aim for two real visits per day (one in the morning, one in the afternoon) in the same part of the city: "
         "list both in target_hubs for that day. A day with a single visit is acceptable only when nothing "
@@ -364,7 +366,23 @@ def is_soft_note(note: str) -> bool:
 VERIFY_LOG: list = []  # online checks of the latest audit, saved into the run history
 
 
-def agent_auditor(plan: ExpeditionPlan, req: Requirements) -> AuditResult:
+def _blame_planner_for_chosen_places(reality: dict, rough_plan: RoughItinerary, req: Requirements) -> None:
+    """A place that the Planner chose (it is in the rough itinerary) and OpenStreetMap does not know is the
+    Planner's problem; Logistics cannot fix it. Places that only appear in the schedule stay with Logistics."""
+    chosen = {h.hub_name.strip().lower() for d in rough_plan.days for h in d.target_hubs}
+    keep = []
+    for issue in reality["logistics_issues"]:
+        m = re.match(r"Place '(.+?)' was not found on OpenStreetMap", issue)
+        if m and m.group(1).strip().lower() in chosen:
+            reality["planner_issues"].append(
+                f"Place '{m.group(1)}' was not found on OpenStreetMap in {req.region}. Replace it with a different "
+                "real place from the optional list or another well-known venue that exists.")
+        else:
+            keep.append(issue)
+    reality["logistics_issues"] = keep
+
+
+def agent_auditor(plan: ExpeditionPlan, req: Requirements, rough_plan: RoughItinerary = None) -> AuditResult:
     print("  [Agent 3: Auditor Agent] Evaluating feasibility and routing feedback...")
 
     # --- Skill: budget_check ---
@@ -394,6 +412,8 @@ def agent_auditor(plan: ExpeditionPlan, req: Requirements) -> AuditResult:
     quality = quality_check(plan, _is_generic, req.max_days_per_place, cost_ref.get("hotel_night_eur"))
     reality["planner_issues"] += quality["planner_issues"]
     reality["logistics_issues"] += quality["logistics_issues"]
+    if rough_plan is not None:
+        _blame_planner_for_chosen_places(reality, rough_plan, req)
     VERIFY_LOG[:] = reality["log"]
     for item in reality["log"]:
         print(f"  [Verify] {item['check']}: {item['name']} -> found={item['found']} ({item['source']}) {item['detail']}")
@@ -608,7 +628,7 @@ def run_swarm_loop(req: Requirements, max_iterations: int = 6, inject_mode: str 
                 handoff(record, "logistics", "auditor",
                         f"{len(detailed_plan.days)} day(s), {total_cost:.2f} EUR")
                 _move(record, Status.REVIEWING, "auditor")
-                audit = agent_auditor(detailed_plan, req)
+                audit = agent_auditor(detailed_plan, req, rough_plan)
                 retrying = False
                 iterations_log.append({
                     "iteration": iteration, "planner_ran": run_planner, "total_cost": total_cost,
