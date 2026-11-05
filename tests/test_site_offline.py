@@ -65,8 +65,10 @@ def test_publish_picks_published_runs_and_writes_pages():
         pages = sorted(p.name for p in (site / "runs").glob("*.md"))
         assert pages == ["shenzhen-china-7day-2026-11-05_11-00-00.md", "silicon-valley-usa-3day-2026-11-05_09-00-00.md"], pages
         page = (site / "runs" / pages[0]).read_text(encoding="utf-8")
-        assert page.startswith("---\ntitle: Shenzhen, China, 7 days") and "585.00 EUR per person" in page
+        assert page.startswith('---\ntitle: "Shenzhen, China, 7 days"') and "585.00 EUR per person" in page
         assert "Dear Prof. Zhou" not in page and "{{" not in page and "# Expedition handbook" not in page
+        bench = (site / "benchmarks" / "summary_shenzhen_7day_2026-11-05_14-00-00.md").read_text(encoding="utf-8")
+        assert bench.startswith('---\ntitle: "Batch summary: shenzhen_7day"\n---'), bench[:80]  # a colon needs quotes in YAML
         home = (site / "index.md").read_text(encoding="utf-8")
         assert "/runs/shenzhen-china-7day-2026-11-05_11-00-00" in home and "Benchmarks" in home
         side = json.loads((site / ".vitepress" / "generated.json").read_text(encoding="utf-8"))

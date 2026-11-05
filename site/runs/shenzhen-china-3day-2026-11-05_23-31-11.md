@@ -1,5 +1,5 @@
 ---
-title: Shenzhen, China, 3 days
+title: "Shenzhen, China, 3 days"
 outline: [2, 3]
 ---
 

@@ -26,6 +26,11 @@ def slug(text: str) -> str:
     return re.sub(r"[^a-z0-9]+", "-", text.lower()).strip("-")
 
 
+def fm(value: str) -> str:
+    """A front-matter value as a quoted YAML string (a bare 'Batch summary: x' is a YAML error)."""
+    return json.dumps(value, ensure_ascii=False)
+
+
 def sanitize(md: str) -> str:
     """Make generated Markdown safe for VitePress, which reads pages as Vue templates: no '{{', and no '<' that
     could start a tag, except the <details>/<summary> pair that the run files use."""
@@ -74,7 +79,7 @@ def run_page(run: dict, with_emails: bool) -> str:
             ("Run", run["stamp"])]
     table = "| | |\n|---|---|\n" + "\n".join(f"| {k} | {v} |" for k, v in rows)
     body = md.split("\n", 1)[1] if md.startswith("# ") else md  # the page title comes from the front matter
-    return f"---\ntitle: {title}\noutline: [2, 3]\n---\n\n# {title}\n\n{sanitize(table)}\n\n{sanitize(body)}"
+    return f"---\ntitle: {fm(title)}\noutline: [2, 3]\n---\n\n# {title}\n\n{sanitize(table)}\n\n{sanitize(body)}"
 
 
 def publish(outputs: Path, site: Path, keep: int = 1, with_emails: bool = False) -> dict:
@@ -98,7 +103,7 @@ def publish(outputs: Path, site: Path, keep: int = 1, with_emails: bool = False)
     for f in sorted(outputs.glob("summary_*.md"), reverse=True):
         text = f.read_text(encoding="utf-8")
         title = text.splitlines()[0].lstrip("# ").strip() if text else f.stem
-        (bench_dir / f.name).write_text(f"---\ntitle: {title}\n---\n\n{sanitize(text)}", encoding="utf-8")
+        (bench_dir / f.name).write_text(f"---\ntitle: {fm(title)}\n---\n\n{sanitize(text)}", encoding="utf-8")
         benches.append({"text": f"{title} ({f.stem[-19:]})", "link": f"/benchmarks/{f.stem}"})
 
     index = ["---", "layout: doc", "title: Expedition swarm", "---", "", "# Expedition swarm: living handbook", "",

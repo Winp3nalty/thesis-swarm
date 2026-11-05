@@ -1,5 +1,5 @@
 ---
-title: Silicon Valley, USA, 7 days
+title: "Silicon Valley, USA, 7 days"
 outline: [2, 3]
 ---
 

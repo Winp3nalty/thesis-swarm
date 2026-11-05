@@ -1,5 +1,5 @@
 ---
-title: Batch summary: shenzhen_3day
+title: "Batch summary: shenzhen_3day"
 ---
 
 # Batch summary: shenzhen_3day

@@ -1,5 +1,5 @@
 ---
-title: Batch summary: silicon_valley_7day
+title: "Batch summary: silicon_valley_7day"
 ---
 
 # Batch summary: silicon_valley_7day
