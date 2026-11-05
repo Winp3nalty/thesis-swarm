@@ -1,8 +1,0 @@
-{
-  "_note": "ASSUMPTIONS, not measured facts. Edit these numbers and cite your source in the thesis (for example hostel and street-food price levels in the destination). The guide values are given to the Logistics agent; the Auditor flags plans below the minimums.",
-  "min_day_total_eur": 60,
-  "min_trip_total_eur": 300,
-  "hotel_night_eur": 40,
-  "meals_per_day_eur": 25,
-  "local_transport_per_day_eur": 10
-}
