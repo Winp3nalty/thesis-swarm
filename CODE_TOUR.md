@@ -96,6 +96,13 @@ used), `plan.md`, `history.md` (every draft and verdict), `run.json`, `requireme
 same scenario several times and writes `outputs/summary_*.md` with status counts, mean iterations,
 seconds and plan cost. `results.csv` gets one row per run.
 
+**`practical.py`, `data/practical/<city>.json`**: visa, SIM, payment and transport notes added to `plan.md`.
+They are fixed reference text with a "verify before travel" label, not model output, so every run has the same
+notes and they cannot be invented. `optional_places` in a scenario lists real places the Planner may use for a
+second visit per day.
+- *Q: Why not let the model write the visa advice?* Entry rules change and a model can state them confidently
+  and wrongly; fixed text with a source to check is honest and repeatable.
+
 ## 6. Workers and the Coordinator
 **`workers.py`, `worker_schemas.py`**: Transit (legs between stops) and Outreach (email requesting a lab
 tour) agents with the same schema-plus-retry pattern. `test_workers.py` measures first-attempt valid JSON.

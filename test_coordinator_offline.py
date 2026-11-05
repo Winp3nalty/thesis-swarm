@@ -79,6 +79,7 @@ def test_loop_with_workers():
         for name in ["transit_day1.md", "transit_day3.md"] + [f"outreach_o{i:02d}.md" for i in range(1, len(req.outreach) + 1)]:
             assert (run / name).exists(), name
         assert "outreach_o01.md" in (run / "index.md").read_text()
+        assert "Practical notes" in (run / "plan.md").read_text(encoding="utf-8"), "visa and SIM section missing"
         events = [json.loads(l) for l in sorted(Path("logs").glob("audit_*.jsonl"))[-1].read_text().splitlines()]
         notes = " ".join(e.get("message", "") for e in events)
         assert "handoff -> coordinator" in notes and "handoff -> transit" in notes and "handoff -> outreach" in notes

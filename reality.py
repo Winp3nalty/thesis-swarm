@@ -16,6 +16,7 @@ import json
 import re
 from pathlib import Path
 
+from plan_quality import lodging_charge_days
 from skills import run_skill
 from skills.builtin import _minutes
 
@@ -129,8 +130,14 @@ def reality_check(plan, required_hubs: list[str], search_names: dict | None = No
     trip_total = sum(a.cost_eur for d in plan.days for a in d.activities)
     if trip_min and trip_total < trip_min:
         nights = max(len(plan.days) - 1, 0)
-        hint = (f" For example add one 'Hotel' activity of {hotel:g} EUR for each of the {nights} nights "
-                f"(lodging), if the plan has none yet." if nights else "")
+        hint = ""
+        if nights and hotel:
+            missing = [n for n in range(1, nights + 1) if n not in lodging_charge_days(plan, hotel)]
+            if missing:
+                hint = (f" Lodging is missing on day(s) {', '.join(map(str, missing))}: add one 'Hotel' row "
+                        f"described as 'Overnight stay' with a cost of {hotel:g} EUR to each of those days.")
+            else:
+                hint = " Lodging is complete, so raise the meal and local transport costs inside the visit rows."
         logistics.append(f"Trip total {trip_total:.2f} EUR is below the realistic minimum of {trip_min:g} EUR. "
                          f"Add about {trip_min - trip_total:.0f} EUR.{hint}")
     return {"planner_issues": planner, "logistics_issues": logistics, "log": log}
@@ -145,7 +152,8 @@ def cost_guide_text(num_days: int, ref: dict | None) -> str:
     nights = max(num_days - 1, 0)
     lines = ["", "Cost guide (the Auditor rejects plans that ignore it):"]
     if nights:
-        lines.append(f"- Lodging: one 'Hotel' activity per night ({nights} nights), about {ref['hotel_night_eur']:g} EUR each.")
+        lines.append(f"- Lodging: on each of days 1 to {nights} add one 'Hotel' row described as 'Overnight stay' costing "
+                     f"{ref['hotel_night_eur']:g} EUR. The last day has no lodging cost. Do not charge lodging twice.")
     lines += [f"- Meals: about {ref['meals_per_day_eur']:g} EUR per day, as part of the day's activities.",
               f"- Local transport: about {ref['local_transport_per_day_eur']:g} EUR per day.",
               f"- Every day must total at least {day_min:g} EUR.",

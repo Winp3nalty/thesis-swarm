@@ -259,6 +259,47 @@ def test_skills_call_log_and_batch_summary():
         assert list(__import__("pathlib").Path(tmp).glob("summary_shenzhen_7day_*.md")) and "[SUMMARY]" in out
 
 
+def test_verify_place_rejects_unrelated_small_hit():
+    """'Shenzhen Technology Park' once matched a bank branch: a small everyday place with an unrelated name."""
+    import os
+    import tempfile
+    from pathlib import Path
+    from skills import web
+    old = (web._WEB_CACHE, web._nominatim, web.time.sleep, os.environ.get("SWARM_OFFLINE"))
+    web._WEB_CACHE = Path(tempfile.mkdtemp()) / "cache.json"
+    web.time.sleep = lambda s: None
+    os.environ.pop("SWARM_OFFLINE", None)
+    hits = {
+        "Shenzhen Technology Park, Shenzhen": {"lat": "22.7", "lon": "114.0", "type": "bank",
+                                                 "display_name": "Postal Savings Bank, Longhua, Shenzhen"},
+        "Huaqiangbei, Shenzhen": {"lat": "22.5", "lon": "114.1", "type": "suburb", "display_name": "华强北, 福田区"},
+        "Pizza Palace, Shenzhen": {"lat": "22.5", "lon": "114.1", "type": "restaurant",
+                                    "display_name": "Pizza Palace, Futian, Shenzhen"},
+    }
+    web._nominatim = lambda q: [hits[q]]
+    try:
+        assert web.verify_place("Shenzhen Technology Park", "Shenzhen")["found"] is False
+        assert web.verify_place("Huaqiangbei", "Shenzhen")["found"] is True  # transliteration, not a small place
+        assert web.verify_place("Pizza Palace", "Shenzhen")["found"] is True  # small place, but the name matches
+    finally:
+        web._WEB_CACHE, web._nominatim, web.time.sleep = old[:3]
+        if old[3] is not None:
+            os.environ["SWARM_OFFLINE"] = old[3]
+
+
+def test_practical_notes():
+    import practical
+    from requirements_schema import load_scenario
+    for name in ("shenzhen_7day", "silicon_valley_7day"):
+        req = load_scenario(name)
+        info = practical.load_practical(req.cost_profile)
+        assert {"Visa and entry", "SIM and internet"} <= set(info["sections"]), name
+        text = practical.practical_md(info)
+        assert "verify before travel" in text and "NOT verified" in text, name
+    assert practical.load_practical("nowhere") == {} and practical.practical_md({}) == ""
+    assert load_scenario("shenzhen_7day").optional_places, "the 7-day scenarios offer optional places"
+
+
 if __name__ == "__main__":
     tests = [v for k, v in sorted(globals().items()) if k.startswith("test_")]
     for t in tests:

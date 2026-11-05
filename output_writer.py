@@ -105,7 +105,7 @@ def render_iterations_md(iterations: list[dict]) -> str:
 
 def write_swarm_run(request, mode, model, gpu, status, iterations, final_plan, audit_log, root=None,
                     warnings=None, requirements=None, plausibility=None, skills_used=None,
-                    coordination=None) -> Path:
+                    coordination=None, practical=None) -> Path:
     d = new_run_dir("swarm", model, label=mode, root=root)
     write_text(d / "history.md", render_iterations_md(iterations))
     write_json(d / "history.json", iterations)
@@ -137,6 +137,9 @@ def write_swarm_run(request, mode, model, gpu, status, iterations, final_plan, a
         plan_md = render_plan_md(final_plan, title="Approved expedition plan")
         if warnings:
             plan_md += "\n## Warnings (approved by the Auditor with reservations)\n\n" + "\n".join(f"- {x}" for x in warnings) + "\n"
+        if practical:
+            from practical import practical_md
+            plan_md += practical_md(practical)
         write_text(d / "plan.md", plan_md)
         write_json(d / "plan.json", final_plan)
         index += ["- [plan.md](plan.md): the approved expedition plan, readable",

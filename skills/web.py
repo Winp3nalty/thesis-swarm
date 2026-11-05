@@ -11,6 +11,7 @@ from __future__ import annotations
 import json
 import os
 import time
+import re
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -141,13 +142,35 @@ def _offline() -> bool:
     return os.environ.get("SWARM_OFFLINE", "0") == "1"
 
 
+# Small everyday places. If the top hit is one of these and its name shares no word with the query, the
+# search matched something else (a bank branch, a bus stop) and the place is treated as not found.
+_SMALL_PLACE_TYPES = {"bank", "atm", "post_office", "bus_stop", "parking", "fuel", "restaurant", "cafe",
+                      "fast_food", "convenience", "supermarket", "pharmacy", "toilets", "bench", "bus_station"}
+
+
+_COMMON_WORDS = {"technology", "technologies", "science", "sciences", "park", "center", "centre", "museum",
+                 "building", "institute", "university", "college", "campus", "research", "the", "and"}
+
+
+def _unrelated_hit(query: str, city: str, result: dict) -> bool:
+    """True when the top hit is a small everyday place whose name shares no distinctive word with the query.
+    City words and common words ('technology', 'park') do not count: every Shenzhen result contains 'Shenzhen'."""
+    kind = str(result.get("type", "")).lower()
+    if kind not in _SMALL_PLACE_TYPES:
+        return False
+    text = (result.get("display_name", "") + " " + str(result.get("name", ""))).lower()
+    skip = _COMMON_WORDS | set(re.findall(r"[a-z0-9]{3,}", city.lower()))
+    distinct = [w for w in re.findall(r"[a-z0-9]{3,}", query.lower()) if w not in skip]
+    return not any(w in text for w in distinct)
+
+
 @skill("verify_place",
        "Check on OpenStreetMap that a named place exists in a city. found=true/false, or null if the web "
        "could not be reached (unverified). Returns coordinates.",
        "place: str, city: str")
 def verify_place(place: str, city: str) -> dict:
     query = f"{place}, {city}"
-    key = "place:" + query.lower()
+    key = "place2:" + query.lower()  # place2: hits are checked for unrelated small places
     hit = _cache_get(key)
     if hit is not None:
         return {**hit, "source": "cache"}
@@ -161,6 +184,9 @@ def verify_place(place: str, city: str) -> dict:
         r = results[0]
         entry = {"found": True, "lat": float(r["lat"]), "lon": float(r["lon"]),
                  "display_name": r.get("display_name", "")[:120]}
+        if _unrelated_hit(place, city, r):
+            # e.g. 'Shenzhen Technology Park' -> a bank branch. Treat as not found, keep what was rejected.
+            entry = {"found": False, "rejected": r.get("display_name", "")[:120]}
     else:
         entry = {"found": False}
     _cache_put(key, entry)

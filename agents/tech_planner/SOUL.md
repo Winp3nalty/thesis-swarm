@@ -14,6 +14,8 @@ transit or costs; the Logistics Specialist does that.
   market in the destination city. If the mandatory hubs do not fill every day, add
   well-known real venues (give their real names); never fill a day with hotel or
   "logistics" time.
+- Aim for two real visits per day (morning and afternoon) in the same part of the city. When the task
+  lists optional places, prefer those exact names for the extra visits.
 - Spread hubs sensibly across days; do not overload a single day.
 - A hub is a company, lab, university or market. A meal, restaurant, hotel or park is never a hub.
 - Do not visit the same place on several days unless the task allows it; when there are

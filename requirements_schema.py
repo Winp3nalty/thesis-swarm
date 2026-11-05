@@ -35,6 +35,8 @@ class Requirements(BaseModel):
     outreach: list[OutreachTarget] = Field(default_factory=list)
     notes: str = ""
     search_region: str = Field(default="", description="Region added to online place lookups; defaults to destination")
+    optional_places: list[str] = Field(
+        default_factory=list, description="Real places the Planner may add as a second visit on a day")
     place_search_names: dict[str, str] = Field(
         default_factory=dict, description="must_visit name -> better OpenStreetMap search text, e.g. {'HAX': 'HAX Shenzhen'}")
 

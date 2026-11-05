@@ -297,7 +297,7 @@ def main():
     assert dn == ["Trip total 1 EUR is low.", "Other"], dn
     import reality
     guide = reality.cost_guide_text(3, SZ)
-    assert "2 nights" in guide and "40 EUR" in guide and "at least 185 EUR" in guide, guide  # 3 x 35 + 2 x 40
+    assert "days 1 to 2" in guide and "40 EUR" in guide and "at least 185 EUR" in guide, guide  # 3 x 35 + 2 x 40
     captured2 = {}
     run_loop.call_structured_llm = lambda sp, up, rm, temperature=0.2: captured2.setdefault("p", up) and fake_llm(sp, up, rm)
     run_loop.agent_logistics_specialist(fake_llm("", "", RoughItinerary), 1200, cost_ref=SZ)
@@ -311,8 +311,24 @@ def main():
             {"start_time": "09:00", "end_time": "10:00", "location": "DJI", "activity_description": "Visit",
              "transit_mode": "car", "cost_eur": 30.0}]} for i in range(3)]})
     notes = " ".join(rl.reality_check(low, [], cost_ref=SZ)["logistics_issues"])
-    assert "Add about 5 EUR" in notes and "Add about 95 EUR" in notes and "'Hotel' activity of 40 EUR" in notes, notes
+    assert "Add about 5 EUR" in notes and "Add about 95 EUR" in notes and "Lodging is missing on day(s) 1, 2" in notes and "Overnight stay" in notes, notes
     assert "below the realistic minimum" in notes  # still recognised as cost-only by the escalation rule
+    # Lodging already charged on every night: the hint asks for higher meal and transport costs instead.
+    paid = ExpeditionPlan.model_validate({"destination": "Shenzhen, China", "duration_days": 3, "total_budget_eur": 1.0,
+        "days": [{"day": i + 1, "focus_topic": "x", "activities": [
+            {"start_time": "09:00", "end_time": "10:00", "location": "DJI", "activity_description": "Visit",
+             "transit_mode": "car", "cost_eur": 5.0},
+            {"start_time": "20:00", "end_time": "21:00", "location": "Hotel", "activity_description": "Overnight stay",
+             "transit_mode": "walk", "cost_eur": 40.0 if i < 2 else 0.0}]} for i in range(3)]})
+    notes2 = " ".join(rl.reality_check(paid, [], cost_ref=SZ)["logistics_issues"])
+    assert "Lodging is complete" in notes2 and "Lodging is missing" not in notes2, notes2
+    # The Planner is offered the scenario's optional places and asked for two visits a day.
+    seen = {}
+    run_loop.call_structured_llm = lambda sp, up, rm, temperature=0.2: seen.setdefault("p", up) and fake_llm(sp, up, rm)
+    opt_req = load_scenario("shenzhen_3day").model_copy(update={"optional_places": ["Shenzhen University"]})
+    run_loop.agent_tech_planner(opt_req)
+    assert "two real visits per day" in seen["p"] and "Shenzhen University" in seen["p"], seen["p"]
+    print("[OK] lodging hint names the missing nights; the Planner is offered optional places")
     os.environ.pop("SWARM_OFFLINE")
     calls3 = []
 

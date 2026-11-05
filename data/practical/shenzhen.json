@@ -1,0 +1,24 @@
+{
+  "_note": "Reference text for the plan, written from general knowledge and NOT verified live. Entry rules change often: check the official sources named below before travelling. Cite them in the thesis, not this file.",
+  "last_checked": "not verified",
+  "sections": {
+    "Visa and entry": [
+      "Entry rules depend on your nationality and change often; several countries have had temporary visa-free short stays. Check the Chinese embassy or consulate website and the National Immigration Administration (nia.gov.cn) before booking.",
+      "Passport must normally be valid for at least 6 months and have blank pages. Carry the hotel booking and onward ticket for the border check.",
+      "Hong Kong is next to Shenzhen and has separate entry rules; crossing at Shenzhen Bay or Luohu is a normal border control."
+    ],
+    "SIM and internet": [
+      "Foreign phone numbers and roaming work, but Google, WhatsApp and many Western sites are blocked on Chinese networks unless your roaming or eSIM routes traffic abroad. Set this up before you arrive.",
+      "A local prepaid SIM needs a passport for registration (airport or China Mobile / China Unicom shops). A travel eSIM is the least effort.",
+      "Install a map and translation app that works offline (Apple Maps works; Google Maps is unreliable)."
+    ],
+    "Payments": [
+      "Alipay and WeChat Pay are used almost everywhere. Both can link a foreign Visa or Mastercard for tourists; set it up before the trip and keep some cash as a backup.",
+      "Taxis and metro accept Alipay/WeChat QR codes; DiDi works as a taxi app."
+    ],
+    "Local transport": [
+      "The Shenzhen Metro is cheap and covers Futian, Nanshan and the airport; use it for most legs and a taxi for the last kilometres.",
+      "Shenzhen North is the high-speed rail station for Guangzhou and Hong Kong West Kowloon."
+    ]
+  }
+}

@@ -19,6 +19,12 @@ _CHECK_OUT = ("check-out", "check out", "checkout")
 _LODGING_WORDS = ("hotel", "hostel", "lodging", "apartment", "accommodation")
 
 
+def lodging_charge_days(plan, hotel_eur: float) -> set[int]:
+    """Days that carry a lodging charge (a row at a hotel-like location costing about one night)."""
+    return {d.day for d in plan.days for a in d.activities
+            if any(w in a.location.lower() for w in _LODGING_WORDS) and a.cost_eur >= 0.8 * hotel_eur}
+
+
 def quality_check(plan, is_generic, max_days_per_place: int = 1, hotel_eur: float | None = None) -> dict:
     """Return {"planner_issues": [...], "logistics_issues": [...]}; is_generic(name) is True for hotel/transport."""
     planner, logistics = [], []

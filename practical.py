@@ -1,0 +1,28 @@
+"""Practical travel notes (visa, SIM, payments, transport) per city, from data/practical/<profile>.json.
+
+The text is reference data, not a model answer, so it is the same on every run and carries a visible
+"verify before travel" label. It is appended to plan.md next to the plan.
+"""
+from __future__ import annotations
+
+import json
+from pathlib import Path
+
+_DIR = Path(__file__).resolve().parent / "data" / "practical"
+
+
+def load_practical(profile: str) -> dict:
+    try:
+        return json.loads((_DIR / f"{profile}.json").read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+
+
+def practical_md(info: dict) -> str:
+    if not info or not info.get("sections"):
+        return ""
+    lines = ["", "## Practical notes (reference data, verify before travel)", "",
+             f"_{info.get('_note', 'Verify these notes before travel.')}_", ""]
+    for title, items in info["sections"].items():
+        lines += [f"### {title}", ""] + [f"- {x}" for x in items] + [""]
+    return "\n".join(lines)

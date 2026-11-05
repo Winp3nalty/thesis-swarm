@@ -9,6 +9,13 @@
     "HAX",
     "Huaqiangbei"
   ],
+  "optional_places": [
+    "Southern University of Science and Technology",
+    "Shenzhen University",
+    "Tencent Binhai Building",
+    "Shenzhen Science and Technology Museum",
+    "OCT Loft"
+  ],
   "interests": "robotics, drones, hardware startups, electronics sourcing",
   "outreach": [
     {

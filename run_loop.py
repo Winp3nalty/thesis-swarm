@@ -245,7 +245,13 @@ def agent_tech_planner(
         f"Plan exactly {req.days} days. Every day needs a real visit, and a place may appear on at most "
         f"{req.max_days_per_place} day(s). If there are fewer mandatory hubs than days, add other real "
         f"companies, labs or universities in {req.region}.\n"
+        "Aim for two real visits per day (one in the morning, one in the afternoon) in the same part of the city: "
+        "list both in target_hubs for that day. A day with a single visit is acceptable only when nothing "
+        "suitable is left.\n"
     )
+    if req.optional_places:
+        user_prompt += ("Real places you may add as extra visits (use these exact names; other places only if you "
+                        f"are sure they exist): {', '.join(req.optional_places)}\n")
 
     if previous_plan and critique_feedback:
         user_prompt += (
@@ -487,6 +493,7 @@ SAVE_OUTPUTS = os.environ.get("SWARM_SAVE_OUTPUTS", "1") != "0"
 
 def _save_outputs(req, mode, status, iterations, plan, record, warnings=None, plausibility=None, skills_used=None,
                   coordination=None):
+    from practical import load_practical
     """Write plan.md/plan.json/history.md under outputs/<run>/. Never lets saving break a run."""
     if not SAVE_OUTPUTS:
         return
@@ -495,7 +502,7 @@ def _save_outputs(req, mode, status, iterations, plan, record, warnings=None, pl
         d = output_writer.write_swarm_run(req.request_text(), mode or "none", MODEL_NAME, _gpu_name(), status,
                                           iterations, plan, record.log_path, warnings=warnings,
                                           requirements=req.model_dump(), plausibility=plausibility, skills_used=skills_used,
-                                          coordination=coordination)
+                                          coordination=coordination, practical=load_practical(req.cost_profile))
         print(f"[OUTPUT] Readable results saved: {d / 'index.md'}")
     except Exception as e:
         print(f"[OUTPUT] Could not save readable results: {type(e).__name__}: {e}")

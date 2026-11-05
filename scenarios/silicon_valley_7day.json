@@ -8,6 +8,13 @@
     "UC Berkeley",
     "Computer History Museum"
   ],
+  "optional_places": [
+    "Googleplex",
+    "Apple Park Visitor Center",
+    "NASA Ames Research Center",
+    "Intel Museum",
+    "The Tech Interactive"
+  ],
   "interests": "robotics, embodied AI research, startups",
   "outreach": [
     {

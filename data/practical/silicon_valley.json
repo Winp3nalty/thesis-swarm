@@ -1,0 +1,21 @@
+{
+  "_note": "Reference text for the plan, written from general knowledge and NOT verified live. Entry rules change often: check the official sources named below before travelling. Cite them in the thesis, not this file.",
+  "last_checked": "not verified",
+  "sections": {
+    "Visa and entry": [
+      "Many European citizens travel under the Visa Waiver Program and need an approved ESTA before boarding (apply on the official site esta.cbp.dhs.gov; apply several days ahead). Other nationalities need a visa. Check travel.state.gov for your passport.",
+      "Passport should be valid for the whole stay; carry the return ticket and address of the first night."
+    ],
+    "SIM and internet": [
+      "US prepaid SIMs and travel eSIMs are sold online and in stores (T-Mobile, AT&T, Verizon resellers). An eSIM bought before the flight works on arrival.",
+      "Free Wi-Fi is common in cafes and at universities, but do not rely on it for maps."
+    ],
+    "Payments": [
+      "Cards and contactless payment are accepted nearly everywhere. Tipping (15 to 20 percent in restaurants) is expected and not included in the price."
+    ],
+    "Local transport": [
+      "Public transport is slow between the sites: Caltrain connects San Francisco, Mountain View, Palo Alto and San Jose; BART serves Berkeley and Oakland. A Clipper card works on both.",
+      "Most company campuses are far from stations. Plan a rental car or ride-hail for the last leg, and allow for rush-hour traffic on US-101 and I-280."
+    ]
+  }
+}
