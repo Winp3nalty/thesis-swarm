@@ -67,14 +67,25 @@ def _retry_feedback(err: Exception) -> str:
             "Fix these problems and answer again.")
 
 
-def run_worker(system_prompt, user_prompt, response_model, validator=None, max_retries=2):
+def _try_repair(repair, result, validator):
+    """The repaired result if it is valid (schema and content rules), else None."""
+    try:
+        fixed = repair(result)
+    except (ValidationError, ValueError):
+        return None
+    return fixed if fixed is not None and not validator(fixed) else None
+
+
+def run_worker(system_prompt, user_prompt, response_model, validator=None, max_retries=2, repair=None, repair_after=2):
     """
     Call the model, retrying with feedback when the reply is invalid.
     Returns (result, info) where info = {attempts, first_schema_ok, first_semantic_ok}.
     Raises WorkerFailed when it is still invalid after max_retries retries.
+    repair(result) may return a corrected result (or None); it is tried from attempt `repair_after` on, and is
+    accepted only when the validator then finds no problem. info["repaired"] says whether code fixed the answer.
     """
     info = {"attempts": 0, "first_schema_ok": None, "first_semantic_ok": None,
-            "first_problems": [], "attempt_log": []}
+            "first_problems": [], "attempt_log": [], "repaired": False}
     feedback = ""
     while True:
         info["attempts"] += 1
@@ -104,6 +115,14 @@ def run_worker(system_prompt, user_prompt, response_model, validator=None, max_r
                 info["first_problems"] = problems
             if not problems:
                 return result, info
+            if repair and n >= repair_after:
+                fixed = _try_repair(repair, result, validator)
+                if fixed is not None:
+                    info["attempt_log"].append({"attempt": n, "status": "repaired", "problems": [
+                        "code removed the sentences that broke the rules and the rest passed all checks"],
+                        "rejected_text": None, "response": fixed.model_dump()})
+                    info["repaired"] = True
+                    return fixed, info
             err = SemanticError("; ".join(problems), previous=getattr(result, "body", None))
         if info["attempts"] > max_retries:
             raise WorkerFailed(info, err)
@@ -208,6 +227,21 @@ def offending_sentences(body: str) -> list[str]:
     return bad if low_body else []
 
 
+def repair_outreach(email: OutreachEmail) -> OutreachEmail | None:
+    """Delete the sentences that break the claim or timing rules. None when nothing can be removed. The caller
+    validates the result again, so a body that is now too short or lost its topic is not accepted."""
+    bad = set(offending_sentences(email.body))
+    if not bad:
+        return None
+    paragraphs = []
+    for para in email.body.split("\n\n"):
+        kept = [x for x in re.split(r"(?<=[.!?])\s+", para.strip()) if x and x.strip() not in bad]
+        if kept:
+            paragraphs.append(" ".join(kept))
+    return OutreachEmail(
+        subject=email.subject, greeting=email.greeting, body="\n\n".join(paragraphs), sign_off=email.sign_off)
+
+
 def validate_outreach(email: OutreachEmail, contact: dict) -> list[str]:
     problems = []
     body = _norm(email.body)
@@ -263,10 +297,12 @@ def agent_outreach(contact: dict, max_retries: int = 3):
         + (f"The sender is {contact['sender_name']}; the sign_off must be a closing phrase followed by this name.\n" if contact.get("sender_name") else "")
         +
         "Never claim a project, research or result of the student group; the group only wants to learn.\n"
+        "Use the word \"our\" only in \"our group\" and \"our visit\". Never write \"our studies\", \"our work\" or \"our research\".\n"
+        "For the interest sentence use this pattern: \"We would like to learn how your work on <topic> is done in practice.\"\n"
         + ("" if contact.get("trip_dates") else "No travel dates are known: do not mention when the visit happens.\n")
         +
         f"Paragraph 1 MUST contain the words \"{contact['institution']}\".\n"
         "Length: write about 165 words in three paragraphs; the body must have at least 130 words.\n"
     )
     return run_worker(system_prompt, user_prompt, OutreachEmail,
-                      lambda email: validate_outreach(email, contact), max_retries)
+                      lambda email: validate_outreach(email, contact), max_retries, repair=repair_outreach)

@@ -150,3 +150,5 @@ Borrowed ideas and their status are listed in `THIRD_PARTY.md`.
 ## v0.8.6: length rule matches what the model can do
 - Outreach bodies may have 100-180 words (was 120-180). qwen3:8b wrote 113-119 words in five of six attempts and repeated the same text on retry; the length is not what makes an email good. The retry text now names two concrete sentences to add.
 - Transit prompt states the exact number of legs; the model had added a leg to the hotel in 4 of 5 days.
+
+- v0.9e: if an Outreach email still breaks the claim or timing rules from the second attempt on, code deletes the offending sentences and re-validates; a repaired email is marked "repaired by code" in the output. The prompt also limits "our" to "our group" and "our visit".

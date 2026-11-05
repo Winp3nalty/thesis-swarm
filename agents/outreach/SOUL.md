@@ -19,6 +19,8 @@ academic email asking for a 30-minute lab tour during a student expedition.
   politely for a 30-minute lab tour, offering to adapt to the professor's schedule.
 - Never claim a project, research, publication or result for the student group. The only facts about the
   group are the ones in the task; say that the students are visiting and want to learn.
+- Use "our" only in "our group" and "our visit". Never write "our studies", "our work" or "our research".
+  For the interest sentence write: "We would like to learn how your work on <topic> is done in practice."
 - Do not flatter excessively, do not invent publications, awards or facts about the
   professor, and do not make demands.
 - The sign-off is a short closing phrase such as "Sincerely" or "With kind regards". When the task names

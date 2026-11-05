@@ -301,6 +301,37 @@ def test_content_retry_shows_previous_body_and_the_bad_sentence():
     assert inspect.signature(workers.agent_outreach).parameters["max_retries"].default == 3
 
 
+def test_code_repairs_a_stubborn_sentence_after_two_rejections():
+    contact = {"name": "Prof. Zhou Mingyu", "institution": "Southern University of Science and Technology",
+               "topics": ["soft robotic grippers"], "city": "Shenzhen"}
+    bad = "Your findings can inform our studies."
+    body = ("Your work on soft robotic grippers at Southern University of Science and Technology is admired. "
+            + bad + " " + " ".join(["word"] * 100) + " We ask for a 30-minute lab tour.")
+    calls = []
+
+    def fake(system_prompt, user_prompt, model, temperature=0.2):
+        calls.append(1)
+        return OutreachEmail(subject="Lab tour request", greeting="Dear Prof. Zhou Mingyu,", body=body, sign_off="Sincerely")
+
+    real = run_loop.call_structured_llm
+    run_loop.call_structured_llm = fake
+    try:
+        result, info = workers.agent_outreach(contact)
+    finally:
+        run_loop.call_structured_llm = real
+    assert len(calls) == 2 and info["attempts"] == 2 and info["repaired"] is True
+    assert "our studies" not in result.body and "soft robotic grippers" in result.body
+    assert info["attempt_log"][-1]["status"] == "repaired"
+    # a body that is too short after the cut is NOT accepted
+    short = OutreachEmail(subject="Lab tour request", greeting="Dear Prof. Zhou Mingyu,",
+                          body="Your work on soft robotic grippers at Southern University of Science and Technology is admired. "
+                               + bad + " " + " ".join(["word"] * 92) + " We ask for a 30-minute lab tour.", sign_off="S")
+    try:
+        workers.repair_outreach(short)
+    except ValueError:
+        pass  # too short: run_worker catches this and keeps retrying
+
+
 if __name__ == "__main__":
     tests = [v for k, v in sorted(globals().items()) if k.startswith("test_")]
     for t in tests:

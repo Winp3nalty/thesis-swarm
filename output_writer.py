@@ -196,11 +196,14 @@ def _status_line(info: dict, final_ok: bool, error: str = "") -> str:
             ("content rules met" if info.get("first_semantic_ok") else "content rules BROKEN")
     line = (f"**Result:** {'valid' if final_ok else 'FAILED'} after {info.get('attempts', 0)} attempt(s). "
             f"First attempt: {first}.")
+    if info.get("repaired"):
+        line += " The final text was repaired by code (rule-breaking sentences removed)."
     return line + (f"\n\n**Error:** `{_cell(error)}`" if error else "")
 
 
 def _attempts_md(info: dict) -> list[str]:
-    names = {"ok": "accepted", "schema_error": "rejected (JSON or schema)", "content_problems": "rejected (content rules)"}
+    names = {"ok": "accepted", "schema_error": "rejected (JSON or schema)", "content_problems": "rejected (content rules)",
+             "repaired": "repaired by code"}
     lines = ["## Attempts", ""]
     for a in info.get("attempt_log", []):
         lines.append(f"### Attempt {a['attempt']}: {names.get(a['status'], a['status'])}")
