@@ -1,0 +1,33 @@
+{
+  "destination": "Silicon Valley, USA",
+  "days": 7,
+  "budget_eur": 2800,
+  "comfort": "budget",
+  "must_visit": [
+    "Stanford University",
+    "UC Berkeley",
+    "Computer History Museum"
+  ],
+  "interests": "robotics, embodied AI research, startups",
+  "outreach": [
+    {
+      "name": "Prof. Elena Marchetti",
+      "institution": "Stanford University",
+      "topics": [
+        "legged locomotion on rough terrain",
+        "model-predictive control"
+      ]
+    },
+    {
+      "name": "Prof. Daniel Okafor",
+      "institution": "UC Berkeley",
+      "topics": [
+        "robot learning from demonstration",
+        "dexterous manipulation"
+      ]
+    }
+  ],
+  "notes": "Local transport by BART and Caltrain.",
+  "search_region": "California, USA",
+  "place_search_names": {}
+}

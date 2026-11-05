@@ -9,6 +9,8 @@ The future Intake agent will produce the same object by interviewing the user.
 from __future__ import annotations
 
 import json
+import math
+import re
 from pathlib import Path
 from typing import Literal
 
@@ -32,6 +34,9 @@ class Requirements(BaseModel):
     interests: str = ""
     outreach: list[OutreachTarget] = Field(default_factory=list)
     notes: str = ""
+    search_region: str = Field(default="", description="Region added to online place lookups; defaults to destination")
+    place_search_names: dict[str, str] = Field(
+        default_factory=dict, description="must_visit name -> better OpenStreetMap search text, e.g. {'HAX': 'HAX Shenzhen'}")
 
     @field_validator("must_visit")
     @classmethod
@@ -46,6 +51,20 @@ class Requirements(BaseModel):
     @property
     def city(self) -> str:
         return self.destination.split(",")[0].strip()
+
+    @property
+    def region(self) -> str:
+        return self.search_region or self.destination
+
+    @property
+    def cost_profile(self) -> str:
+        """Name of the price file data/cost/<name>.json, taken from the city: 'Silicon Valley' -> silicon_valley."""
+        return re.sub(r"[^a-z0-9]+", "_", self.city.lower()).strip("_")
+
+    @property
+    def max_days_per_place(self) -> int:
+        """A place may be visited on this many days; more than one only if there are fewer hubs than days."""
+        return max(1, math.ceil(self.days / len(self.must_visit)))
 
     def request_text(self) -> str:
         """The request as plain text for the prompts, the audit log and the output files."""

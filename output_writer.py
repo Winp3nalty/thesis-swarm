@@ -104,7 +104,7 @@ def render_iterations_md(iterations: list[dict]) -> str:
 
 
 def write_swarm_run(request, mode, model, gpu, status, iterations, final_plan, audit_log, root=None,
-                    warnings=None, requirements=None) -> Path:
+                    warnings=None, requirements=None, plausibility=None) -> Path:
     d = new_run_dir("swarm", model, label=mode, root=root)
     write_text(d / "history.md", render_iterations_md(iterations))
     write_json(d / "history.json", iterations)
@@ -112,11 +112,19 @@ def write_swarm_run(request, mode, model, gpu, status, iterations, final_plan, a
         write_json(d / "requirements.json", requirements)
     from version_info import version_info, version_line
     write_json(d / "run.json", {"request": request, "fault_mode": mode, "model": model, "gpu": gpu,
-                                "status": status, "iterations": len(iterations), **version_info()})
+                                "status": status, "iterations": len(iterations),
+                                "plausibility": plausibility, **version_info()})
     index = ["# Swarm run", "", f"- **Version:** {version_line()}", f"- **Status:** {status}", f"- **Fault mode:** {mode}",
              f"- **Model:** {model}", f"- **GPU:** {gpu}", f"- **Iterations:** {len(iterations)}",
              f"- **Audit log (state path and handovers):** `{audit_log}`", "",
-             "## Request", "", f"> {request}", "", "## Files", ""]
+             "## Request", "", f"> {request}", ""]
+    if plausibility:
+        index += ["## Plausibility check (before planning)", "",
+                  f"- Result: {'passed' if plausibility['ok'] else 'REJECTED'}"]
+        index += [f"- Problem: {x}" for x in plausibility["hard"]] + [f"- Warning: {x}" for x in plausibility["warnings"]]
+        index += [f"- Cheapest realistic trip: {plausibility['floors']['trip_eur']} EUR"] if plausibility["floors"]["trip_eur"] else []
+        index.append("")
+    index += ["## Files", ""]
     if final_plan:
         plan_md = render_plan_md(final_plan, title="Approved expedition plan")
         if warnings:

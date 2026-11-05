@@ -259,7 +259,8 @@ def main():
     bad = plan_with([[act("09:00", "11:00", "Fake Lab"), act("11:10", "12:00", "DJI")],
                      [act("12:00", "13:00", "DJI", "Hotel check-in", 5.0)],
                      [act("10:00", "11:00", "Hotel", "Rest", 5.0)]])
-    r = reality.reality_check(bad, hubs)
+    SZ = reality.load_cost_reference("shenzhen")
+    r = reality.reality_check(bad, hubs, cost_ref=SZ)
     text = " ".join(r["logistics_issues"] + r["planner_issues"])
     assert "Fake Lab" in text and "not found" in text
     assert "only 10 min between Fake Lab" not in text  # Fake Lab has no coordinates, so no gap check
@@ -286,11 +287,11 @@ def main():
     dn = run_loop._dedupe_notes(["Trip total 1 EUR is low.", "Reality Problems: ['x']", "Trip total 1 EUR is low.", "Other"])
     assert dn == ["Trip total 1 EUR is low.", "Other"], dn
     import reality
-    guide = reality.cost_guide_text(3)
-    assert "2 nights" in guide and "40 EUR" in guide and "at least 300 EUR" in guide, guide
+    guide = reality.cost_guide_text(3, SZ)
+    assert "2 nights" in guide and "40 EUR" in guide and "at least 185 EUR" in guide, guide  # 3 x 35 + 2 x 40
     captured2 = {}
     run_loop.call_structured_llm = lambda sp, up, rm, temperature=0.2: captured2.setdefault("p", up) and fake_llm(sp, up, rm)
-    run_loop.agent_logistics_specialist(fake_llm("", "", RoughItinerary), 1200)
+    run_loop.agent_logistics_specialist(fake_llm("", "", RoughItinerary), 1200, cost_ref=SZ)
     assert "Cost guide" in captured2["p"]
     print("[OK] notes deduplicated; Logistics prompt contains the cost guide")
     # Specific cost feedback, higher temperature on direct fixes, and an identical plan is challenged.
@@ -299,9 +300,9 @@ def main():
     low = ExpeditionPlan.model_validate({"destination": "Shenzhen, China", "duration_days": 3, "total_budget_eur": 1.0,
         "days": [{"day": i + 1, "focus_topic": "x", "activities": [
             {"start_time": "09:00", "end_time": "10:00", "location": "DJI", "activity_description": "Visit",
-             "transit_mode": "car", "cost_eur": 55.0}]} for i in range(3)]})
-    notes = " ".join(rl.reality_check(low, [])["logistics_issues"])
-    assert "Add about 5 EUR" in notes and "Add about 135 EUR" in notes and "'Hotel' activity of 40 EUR" in notes, notes
+             "transit_mode": "car", "cost_eur": 30.0}]} for i in range(3)]})
+    notes = " ".join(rl.reality_check(low, [], cost_ref=SZ)["logistics_issues"])
+    assert "Add about 5 EUR" in notes and "Add about 95 EUR" in notes and "'Hotel' activity of 40 EUR" in notes, notes
     assert "below the realistic minimum" in notes  # still recognised as cost-only by the escalation rule
     os.environ.pop("SWARM_OFFLINE")
     calls3 = []
@@ -345,6 +346,113 @@ def main():
     run_loop.call_structured_llm = hubless_llm
     assert run_loop.run_swarm_loop(load_scenario("shenzhen_3day"), max_iterations=4) is None, "hard problems are never waived"
     print("[OK] soft-only rejections end as SUCCESS_WITH_WARNINGS after 3 rounds; hard problems are not waived")
+
+    # v0.7: plan-quality checks (soft), the plausibility gate, per-city price files, search names.
+    import plan_quality
+    import reality
+    from plausibility import plausibility_check
+    os.chdir(tempfile.mkdtemp())
+    os.environ["SWARM_OFFLINE"] = "1"
+    sz3 = load_scenario("shenzhen_3day")
+
+    def mkact(loc, desc="Visit", cost=50.0):
+        return {"start_time": "09:00", "end_time": "10:00", "location": loc, "activity_description": desc,
+                "transit_mode": "Taxi", "cost_eur": cost}
+
+    def mkplan(days):
+        return ExpeditionPlan.model_validate({"destination": "Shenzhen, China", "duration_days": len(days),
+            "total_budget_eur": 1.0, "days": [{"day": i + 1, "focus_topic": "x", "activities": d}
+                                              for i, d in enumerate(days)]})
+
+    repeat = mkplan([[mkact("DJI")], [mkact("DJI")], [mkact("HAX")]])
+    q = plan_quality.quality_check(repeat, reality._is_generic, 1)
+    assert any("repeated visit (days 1, 2)" in n for n in q["planner_issues"]), q
+    assert plan_quality.quality_check(repeat, reality._is_generic, 2)["planner_issues"] == []  # allowed with fewer hubs than days
+    filler = mkplan([[mkact("DJI"), mkact("Hotel", "Check-in and rest"), mkact("Hotel", "Lunch"), mkact("Hotel", "Dinner")],
+                     [mkact("HAX"), mkact("Hotel", "Check-in again")], [mkact("Huaqiangbei"), mkact("Hotel", "Check-out")]])
+    q = plan_quality.quality_check(filler, reality._is_generic, 1)
+    notes = q["logistics_issues"]
+    assert any("Day 1 is mostly hotel time (3 of 4" in n for n in notes), notes
+    assert any("more than one hotel check-in (days 1, 2)" in n for n in notes), notes
+    repeat_notes = plan_quality.quality_check(repeat, reality._is_generic, 1)["planner_issues"]
+    assert all(run_loop.is_soft_note(n) for n in notes + q["planner_issues"] + repeat_notes)
+    assert not run_loop.is_soft_note("Missing mandatory hub: HAX") and not run_loop.is_soft_note("Budget exceeded: 5 EUR > 1 EUR")
+    assert not run_loop.is_soft_note("Place 'X' was not found on OpenStreetMap in Shenzhen.")
+    print("[OK] quality checks: repeats, hotel filler and extra check-ins are found, and are soft")
+
+    # price floors come from the city's file, not from constants
+    sv = load_scenario("silicon_valley_7day")
+    assert reality.cost_floors(reality.load_cost_reference("shenzhen"), 3) == (35, 185)
+    assert reality.cost_floors(reality.load_cost_reference(sv.cost_profile), 7) == (65, 1115)  # 7 x 65 + 6 x 110
+    assert reality.cost_floors({}, 3) == (None, None) and reality.load_cost_reference("atlantis") == {}
+
+    # plausibility gate
+    ok = plausibility_check(sz3)
+    assert ok["ok"] and ok["floors"]["trip_eur"] == 185 and ok["warnings"] == [], ok
+    cheap = plausibility_check(sz3.model_copy(update={"budget_eur": 150}))
+    assert not cheap["ok"] and "below the cheapest realistic cost of 185 EUR" in cheap["hard"][0], cheap
+    tight = plausibility_check(sz3.model_copy(update={"budget_eur": 200}))
+    assert tight["ok"] and "tight" in tight["warnings"][0], tight
+    crowded = plausibility_check(sz3.model_copy(update={"must_visit": [f"Lab {i}" for i in range(10)]}))
+    assert not crowded["ok"] and "do not fit" in crowded["hard"][0], crowded
+    nocost = plausibility_check(sz3.model_copy(update={"destination": "Atlantis, Sea"}))
+    assert nocost["ok"] and "No price table" in nocost["warnings"][0], nocost
+    os.environ.pop("SWARM_OFFLINE")
+    web._WEB_CACHE = Path(tempfile.mkdtemp()) / "pl_cache.json"
+    seen = []
+
+    def alias_nominatim(query):
+        seen.append(query)
+        return [{"lat": "22.5", "lon": "114.0", "display_name": query}] if "hax shenzhen" in query.lower() else []
+
+    web._nominatim = alias_nominatim
+    r = plausibility_check(sz3)
+    hax = next(x for x in r["log"] if x["name"] == "HAX")
+    assert hax["found"] is False and any("place_search_names" in w and "'HAX'" in w for w in r["warnings"]), r
+    r = plausibility_check(sz3.model_copy(update={"place_search_names": {"HAX": "HAX Shenzhen"}}))
+    assert next(x for x in r["log"] if x["name"] == "HAX")["found"] is True and not any("HAX" in w for w in r["warnings"]), r
+    assert "HAX Shenzhen, Shenzhen, China" in seen, seen
+    os.environ["SWARM_OFFLINE"] = "1"
+
+    # an implausible request stops before any model call and is recorded
+    def no_llm(*a, **k):
+        raise AssertionError("the model must not be called for an implausible request")
+
+    run_loop.call_structured_llm = no_llm
+    impossible = sz3.model_copy(update={"budget_eur": 100})
+    assert run_loop.run_swarm_loop(impossible, max_iterations=3) is None
+    rows = Path("results.csv").read_text().splitlines()
+    assert rows[-1].split(",")[4] == "REJECTED_IMPLAUSIBLE", rows[-1]
+    run_dir = sorted(Path("outputs").iterdir())[-1]
+    index = (run_dir / "index.md").read_text(encoding="utf-8")
+    assert "Plausibility check" in index and "REJECTED_IMPLAUSIBLE" in index and "cheapest realistic cost" in index
+    assert json.loads((run_dir / "run.json").read_text(encoding="utf-8"))["plausibility"]["ok"] is False
+    path, _ = last_path("none")
+    assert path == ["pending", "failed"], path
+    print("[OK] plausibility gate: limits from the price file, search names work, implausible requests stop early")
+
+    # v0.7.1: the model's own wording must not break the soft-problem rule.
+    os.chdir(tempfile.mkdtemp())
+    os.environ["SWARM_OFFLINE"] = "1"
+
+    def chatty_llm(sp, up, rm, temperature=0.2):
+        out = cheap_llm(sp, up, rm)
+        if rm is AuditResult:  # the model rejects with its own wording, no marker phrase in it
+            return AuditResult(passed=False, failed_agent="logistics",
+                               critique_notes=["Day 1 has too many hotel activities and only one real visit"])
+        return out
+
+    run_loop.call_structured_llm = chatty_llm
+    res = run_loop.run_swarm_loop(load_scenario("shenzhen_3day"), max_iterations=6)
+    assert res is not None, "model-worded notes must not turn soft rejections into hard ones"
+    rows = Path("results.csv").read_text().splitlines()
+    assert rows[-1].split(",")[4] == "SUCCESS_WITH_WARNINGS" and rows[-1].split(",")[3] == "3", rows[-1]
+    plan_md = (sorted(Path("outputs").iterdir())[-1] / "plan.md").read_text(encoding="utf-8")
+    assert "too many hotel activities" not in plan_md and "below the realistic minimum" in plan_md
+    # on the last round a soft-only plan is approved with warnings instead of being thrown away
+    assert run_loop.run_swarm_loop(load_scenario("shenzhen_3day"), max_iterations=2) is not None
+    assert Path("results.csv").read_text().splitlines()[-1].split(",")[3] == "2"
+    print("[OK] soft problems are decided from the checks, not the model's wording; last round approves soft-only plans")
     print("\nAll offline loop tests passed.")
 
 

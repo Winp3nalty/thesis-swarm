@@ -48,7 +48,7 @@ format as `requirements.json`. The single-prompt baseline reads the same file.
 |---|---|---|---|---|
 | Crown Prince (triage) | Intake agent: asks questions, fills the requirements | LLM for wording, **code** decides when complete | PLANNED | new `intake.py`, `agents/intake/SOUL.md` |
 | Planning Dept | Planner: rough itinerary and task list | LLM | BUILT (itinerary only) | `agent_tech_planner`, `agents/tech_planner/SOUL.md` |
-| Review Dept | Auditor: approve or reject, route the blame; approves with warnings after 3 soft-only rounds | code checks, LLM explains | BUILT (checks the finished schedule, not yet the requirements) | `agent_auditor`, `agents/auditor/SOUL.md` |
+| Review Dept | Auditor: plausibility gate before planning, then approve or reject the plan and route the blame; approves with warnings after 3 soft-only rounds | code checks, LLM explains | BUILT (`plausibility.py`, `plan_quality.py`, `reality.py`) | `agent_auditor`, `agents/auditor/SOUL.md` |
 | Dispatch Dept | Coordinator: assigns tasks, collects results | mostly **code** | PLANNED (today `run_swarm_loop` does this implicitly) | `run_loop.py`, `handoff.py` |
 | Works (工部) | schedule, transit | LLM | BUILT | `agent_logistics_specialist`, `workers.agent_transit` |
 | Finance (户部) | budget, costs, exchange rates | **skills** | BUILT | `skills/builtin.py`, `skills/web.py` |
@@ -82,7 +82,7 @@ decides that on its own.
 ## 5. Where decisions are made
 
 - **Plausibility (Review, before dispatch):** budget against a reference price table
-  (`data/cost_reference.json`), number of days against number of must-visit places, whether the
+  (`data/cost/<city>.json`), number of days against number of must-visit places, whether the
   named places exist online. Deterministic. If it fails, the Auditor returns a reason, and you can
   change the answers or confirm an override.
 - **Final verification (Justice, after Works):** real places, possible travel gaps, budget
@@ -90,8 +90,11 @@ decides that on its own.
 - **Routing of failures:** every rejection names who must fix it (see `AuditResult.failed_agent`).
   A cost shortfall goes to Works, not to the Planner.
 
-The fixed minimums used so far (60 EUR per day, 300 EUR for the trip) were placeholders chosen
-by hand. They are replaced by the plausibility check above.
+The fixed minimums of v0.6 (60 EUR per day, 300 EUR for the trip) are gone. Since v0.7 the floors
+are derived from the city's price file: a day costs at least meals + local transport, a trip at least
+`days x (meals + transport) + nights x hotel`. The price files hold assumptions, to be cited in the thesis.
+A request below the trip floor is stopped before any model call (`REJECTED_IMPLAUSIBLE`).
+Soft problems (cost floor, repeated visit, hotel filler, extra check-in) are waived after 3 rounds.
 
 ## 6. What is already in place (do not rebuild)
 
@@ -109,7 +112,8 @@ Borrowed ideas and their status are listed in `THIRD_PARTY.md`.
 
 1. ~~Requirements schema, `scenarios/shenzhen_3day.json`, and the loop reading them instead of
    constants.~~ **DONE.** (Unblocks the benchmark.)
-2. Plausibility check in the Auditor, replacing the fixed cost minimums.
+2. ~~Plausibility check in the Auditor, replacing the fixed cost minimums.~~ **DONE** (v0.7), together with
+   the quality checks and the two 7-day scenarios.
 3. Intake agent (fixed question list, model rephrases and extracts answers).
 4. Connect Outreach and Transit to the loop through the Coordinator.
 5. Engineering and Personnel only if time allows. Otherwise they are future work.

@@ -175,6 +175,11 @@ def test_requirements_schema():
     else:
         raise AssertionError("missing scenario must be rejected")
     assert Requirements.model_validate(base) == req
+    # derived values used by the loop
+    assert (req.region, req.cost_profile, req.max_days_per_place) == ("Shenzhen, China", "shenzhen", 1)
+    sv, sz7 = load_scenario("silicon_valley_7day"), load_scenario("shenzhen_7day")
+    assert (sv.cost_profile, sv.region, sv.max_days_per_place) == ("silicon_valley", "California, USA", 3)
+    assert (sz7.days, sz7.max_days_per_place, len(sz7.outreach)) == (7, 2, 2)  # 7 days / 4 hubs -> a place may repeat once
 
 
 def test_state_table_consistent():

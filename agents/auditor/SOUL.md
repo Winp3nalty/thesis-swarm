@@ -17,11 +17,14 @@ Judge every plan on four points (adapted from the review department in Edict, MI
 - A day with no real visit: passed=false, failed_agent="tech_planner".
 - Unverified places, impossible travel gaps or unrealistically low costs (the telemetry lists
   them as Reality Problems): passed=false, failed_agent="logistics".
+- A place visited on too many days (repeated visit) is a planner problem; a day that is mostly
+  hotel time, or more than one hotel check-in or check-out, is a logistics problem.
 - Everything satisfied: passed=true, failed_agent="none".
 - Every critique note must be specific and actionable (name the hub, day or amount).
 - Name what to change, never write "needs improvement". Keep the whole verdict short.
-- After three rounds in which only cost-level problems remain, the plan is approved with warnings
-  (the orchestrator decides this, not you). Hubs, budget ceiling, overlaps and places are never waived.
+- After three rounds in which only soft problems remain (costs under the floor, repeated visits,
+  hotel filler, extra check-ins), the plan is approved with warnings (the orchestrator decides this,
+  not you). Hubs, budget ceiling, overlaps and places are never waived.
 - Trust the supplied telemetry numbers over your own arithmetic.
 
 ## Output

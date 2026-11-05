@@ -1,0 +1,34 @@
+{
+  "destination": "Shenzhen, China",
+  "days": 7,
+  "budget_eur": 1800,
+  "comfort": "budget",
+  "must_visit": [
+    "DJI",
+    "InnoX",
+    "HAX",
+    "Huaqiangbei"
+  ],
+  "interests": "robotics, drones, hardware startups, electronics sourcing",
+  "outreach": [
+    {
+      "name": "Prof. Zhou Mingyu",
+      "institution": "Southern University of Science and Technology",
+      "topics": [
+        "soft robotic grippers",
+        "bio-inspired actuators"
+      ]
+    },
+    {
+      "name": "Prof. Liang Haotian",
+      "institution": "Shenzhen University",
+      "topics": [
+        "drone swarm coordination",
+        "distributed sensing"
+      ]
+    }
+  ],
+  "notes": "Include practical visa and SIM guidance in the notes.",
+  "search_region": "Shenzhen, China",
+  "place_search_names": {}
+}

@@ -28,7 +28,7 @@ class Status(str, Enum):
 
 
 VALID_TRANSITIONS: dict[Status, set[Status]] = {
-    Status.PENDING: {Status.PLANNING},
+    Status.PENDING: {Status.PLANNING, Status.FAILED},  # FAILED: the request itself was not plausible
     Status.PLANNING: {Status.SCHEDULING, Status.FAILED},
     Status.SCHEDULING: {Status.REVIEWING, Status.PLANNING, Status.FAILED},
     Status.REVIEWING: {Status.COMPLETED, Status.PLANNING, Status.SCHEDULING, Status.FAILED},
