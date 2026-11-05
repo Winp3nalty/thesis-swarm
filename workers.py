@@ -167,6 +167,11 @@ _DOING = re.compile(r"\b(studying|researching|developing|building|working|invest
 _STUDY_AT = re.compile(r"\bstud(?:y|ies|ying)(?: engineering| robotics)? at\b")
 
 
+_MONTHS = ("january|february|march|april|june|july|august|september|october|november|december")
+_TIMING = re.compile(rf"\b(?:upcoming|coming|next|this|following)\s+(?:week|weeks|month|months|spring|summer|autumn|fall|winter|"
+                     rf"semester|year|weekend)\b|\b(?:{_MONTHS})\b|\b20\d\d\b|\b(?:tomorrow|next week|in (?:two|three|a few) weeks)\b")
+
+
 def claim_sentences(body: str) -> list[str]:
     """Sentences where the student group is the subject of work it is doing or has done ("Our group is studying
     X", "we have been working on Y"). The students may only say that they visit and want to learn, so this is
@@ -209,6 +214,11 @@ def validate_outreach(email: OutreachEmail, contact: dict) -> list[str]:
         if sentences:
             problems.append("do not claim any project or work of the student group; this sentence does ("
                             f"'{sentences[0][:120]}'). Say only that the students are visiting and want to learn")
+    if not contact.get("trip_dates", "").strip():
+        timing = _TIMING.search(body)
+        if timing:  # no dates were given, so any time statement is invented
+            problems.append(f"do not state when the visit happens (found '{timing.group(0)}'); no travel dates "
+                            "are given. Say only that the students are visiting Shenzhen")
     if "30" not in email.body and "thirty" not in body:
         problems.append("the body must ask for a 30-minute tour")
     return problems
@@ -229,6 +239,8 @@ def agent_outreach(contact: dict, max_retries: int = 2):
         + (f"The sender is {contact['sender_name']}; the sign_off must be a closing phrase followed by this name.\n" if contact.get("sender_name") else "")
         +
         "Never claim a project, research or result of the student group; the group only wants to learn.\n"
+        + ("" if contact.get("trip_dates") else "No travel dates are known: do not mention when the visit happens.\n")
+        +
         f"Paragraph 1 MUST contain the words \"{contact['institution']}\".\n"
         "Length: write about 165 words in three paragraphs; the body must have at least 130 words.\n"
     )

@@ -48,6 +48,25 @@ class Requirements(BaseModel):
     place_search_names: dict[str, str] = Field(
         default_factory=dict, description="must_visit name -> better OpenStreetMap search text, e.g. {'HAX': 'HAX Shenzhen'}")
 
+    place_coordinates: dict[str, tuple[float, float]] = Field(
+        default_factory=dict,
+        description="name -> [lat, lon] for places OpenStreetMap does not find, e.g. {'HAX': [22.54, 113.95]}")
+
+    @field_validator("place_coordinates")
+    @classmethod
+    def _coordinates_in_range(cls, v: dict) -> dict:
+        for name, (lat, lon) in v.items():
+            if not (-90 <= lat <= 90 and -180 <= lon <= 180):
+                raise ValueError(f"place_coordinates['{name}'] = [{lat}, {lon}] is not a latitude/longitude pair")
+        return v
+
+    def known_coords(self, name: str):
+        """(lat, lon) the scenario gives for a place, or None. Names match without regard to case."""
+        for k, v in self.place_coordinates.items():
+            if k.lower() == name.strip().lower():
+                return (v[0], v[1])
+        return None
+
     @field_validator("must_visit")
     @classmethod
     def _no_blank_or_duplicate(cls, v: list[str]) -> list[str]:

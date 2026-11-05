@@ -41,6 +41,10 @@ def plausibility_check(req) -> dict:
     aliases = {k.lower(): v for k, v in req.place_search_names.items()}
     for hub in req.must_visit:
         query = aliases.get(hub.lower(), hub)
+        if req.known_coords(hub):
+            log.append({"check": "place", "name": hub, "found": True, "source": "scenario",
+                        "detail": "coordinates given in the scenario (place_coordinates)"})
+            continue
         res = run_skill("verify_place", place=query, city=req.region)
         r = res.get("result", {}) if res["ok"] else {"found": None, "source": "error"}
         log.append({"check": "place", "name": hub, "found": r.get("found"), "source": r.get("source"),
@@ -50,6 +54,10 @@ def plausibility_check(req) -> dict:
                             "Check the spelling or add a better search text under place_search_names in the scenario.")
     for place in req.optional_places:
         query = aliases.get(place.lower(), place)
+        if req.known_coords(place):
+            log.append({"check": "optional place", "name": place, "found": True, "source": "scenario",
+                        "detail": "coordinates given in the scenario (place_coordinates)"})
+            continue
         res = run_skill("verify_place", place=query, city=req.region)
         r = res.get("result", {}) if res["ok"] else {"found": None, "source": "error"}
         log.append({"check": "optional place", "name": place, "found": r.get("found"), "source": r.get("source"),

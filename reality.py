@@ -56,16 +56,21 @@ def cost_floors(ref: dict, days: int):
 
 
 def reality_check(plan, required_hubs: list[str], search_names: dict | None = None,
-                  region: str | None = None, cost_ref: dict | None = None) -> dict:
+                  region: str | None = None, cost_ref: dict | None = None, known_coords: dict | None = None) -> dict:
     """Return {"planner_issues": [...], "logistics_issues": [...], "log": [...]}."""
     planner, logistics, log = [], [], []
     city = region or plan.destination
     aliases = {k.lower(): v for k, v in (search_names or {}).items()}
     required = {h.lower() for h in required_hubs}
     coords: dict[str, tuple[float, float]] = {}
+    given = {k.lower(): (v[0], v[1]) for k, v in (known_coords or {}).items()}  # coordinates from the scenario
 
     def locate(name: str):
         key = name.lower()
+        if key not in coords and key in given:
+            coords[key] = given[key]
+            log.append({"check": "place", "name": name, "found": True, "source": "scenario",
+                        "detail": "coordinates given in the scenario (place_coordinates)"})
         if key not in coords:
             res = run_skill("verify_place", place=aliases.get(key, name), city=city)
             r = res.get("result", {}) if res["ok"] else {"found": None, "source": "error"}

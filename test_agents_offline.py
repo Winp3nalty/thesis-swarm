@@ -125,6 +125,43 @@ def test_static_web_builds_markdown_and_json():
     assert data["plan"]["days"] and data["finance"]["total_eur"] and data["problems"] and data["practical"]
 
 
+def test_scenario_coordinates_are_used_for_places_osm_does_not_know():
+    import dispatcher
+    import reality
+    from plausibility import plausibility_check
+    req = load_scenario("shenzhen_3day")
+    assert req.known_coords("HAX") is None
+    req2 = req.model_copy(update={"place_coordinates": {"HAX": (22.54, 113.95), "Ghost Lab": (22.5, 114.0)}})
+    assert req2.known_coords("hax") == (22.54, 113.95)
+    # plausibility: given coordinates count as found, with source 'scenario'
+    res = plausibility_check(req2)
+    hax = next(x for x in res["log"] if x["name"] == "HAX")
+    assert hax["found"] is True and hax["source"] == "scenario"
+    assert not any("'HAX'" in w for w in res["warnings"])
+    # reality: a place without coordinates in OSM gets them from the scenario, so travel gaps can be checked
+    plan = _plan([[_act("HAX", "09:00", "10:00"), _act("Ghost Lab", "10:05", "11:00")]])
+    out = reality.reality_check(plan, ["HAX"], {}, "Shenzhen, China", None, req2.place_coordinates)
+    assert any(x["name"] == "Ghost Lab" and x["source"] == "scenario" for x in out["log"]), out["log"]
+    # dispatcher: drive times start from the given coordinates
+    assert dispatcher._coords(["HAX", "Ghost Lab"], req2) == [(22.54, 113.95), (22.5, 114.0)]
+    # a bad pair is refused
+    try:
+        req.model_validate({**req.model_dump(), "place_coordinates": {"X": [95.0, 10.0]}})
+    except ValueError:
+        pass
+    else:
+        raise AssertionError("latitude 95 must be rejected")
+
+
+def test_handbook_header_has_no_duplicate_lines():
+    req = load_scenario("shenzhen_3day")
+    plan = _plan([[_act("DJI")], [_act("HAX")], [_act("Huaqiangbei")]])
+    site = static_web.agent_static_web(plan.model_dump(), req, "SUCCESS", None, None, None, [], "v-test",
+                                       printer=lambda *_: None)
+    md = site["handbook.md"]
+    assert md.count("**Days:**") == 1 and md.count("**Destination:**") == 1, md[:400]
+
+
 if __name__ == "__main__":
     tests = [v for k, v in sorted(globals().items()) if k.startswith("test_")]
     for t in tests:

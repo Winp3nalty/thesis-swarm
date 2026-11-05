@@ -21,6 +21,7 @@ real data and sent back for repair until it passes, or ends with the reasons it 
 python plausibility.py shenzhen_7day                           # check a scenario and its place names
 python test_core.py; python test_loop_offline.py               # offline tests, no model needed
 ```
+A place OpenStreetMap cannot find (for example HAX) can get coordinates in the scenario: `"place_coordinates": {"HAX": [lat, lon]}` (copy them from a map). Then its driving times are measured too.
 Choose the model in `model.txt` (default `qwen3:8b`, needs Ollama). Set `SWARM_OFFLINE=1` to avoid internet calls.
 
 ## Where to read more

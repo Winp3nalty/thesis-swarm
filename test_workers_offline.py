@@ -249,6 +249,28 @@ def test_claim_check_works_per_sentence():
     assert any("Our group is studying" in p for p in problems), problems
 
 
+def test_invented_travel_timing_is_rejected_unless_dates_are_given():
+    contact = {"name": "Prof. Liang Haotian", "institution": "Shenzhen University", "topics": ["drone swarm"],
+               "city": "Shenzhen"}
+    body = ("Your drone swarm work at Shenzhen University is admired. " + " ".join(["word"] * 100)
+            + " We ask for a 30-minute lab tour, and we may adapt to your schedule.")
+    mk = lambda b: OutreachEmail(subject="Lab tour request", greeting="Dear Prof. Liang Haotian,", body=b, sign_off="Sincerely")
+    assert workers.validate_outreach(mk(body), contact) == [], "'may' is a verb, not a month"
+    for phrase in ("Our visit is planned for the upcoming week.", "We arrive next month.", "We travel in March.",
+                   "We come in 2027."):
+        assert any("when the visit happens" in p for p in workers.validate_outreach(mk(body + " " + phrase), contact)), phrase
+    dated = {**contact, "trip_dates": "the second week of March 2027"}
+    assert workers.validate_outreach(mk(body + " We travel in March."), dated) == []
+    captured = {}
+    real = workers.run_worker
+    workers.run_worker = lambda sp, up, *a, **k: captured.setdefault("up", up)
+    try:
+        workers.agent_outreach({**contact, "sender_university": "", "sender_name": "", "trip_dates": ""})
+    finally:
+        workers.run_worker = real
+    assert "No travel dates are known" in captured["up"]
+
+
 if __name__ == "__main__":
     tests = [v for k, v in sorted(globals().items()) if k.startswith("test_")]
     for t in tests:

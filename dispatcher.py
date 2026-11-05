@@ -41,6 +41,9 @@ def _coords(stops: list[str], req) -> list:
         if _is_generic(s):
             coords.append(None)
             continue
+        if req.known_coords(s):
+            coords.append(req.known_coords(s))
+            continue
         res = run_skill("verify_place", place=aliases.get(s.lower(), s), city=req.region)
         r = res.get("result", {}) if res["ok"] else {}
         coords.append((r["lat"], r["lon"]) if r.get("found") else None)

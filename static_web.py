@@ -26,11 +26,10 @@ def agent_static_web(plan: dict, req, status: str, finance: dict | None, local: 
     problems += (local or {}).get("problems", [])
 
     lines = [f"# Expedition handbook: {req.destination}", "",
-             f"- **Status:** {status}", f"- **Days:** {req.days}", f"- **Budget:** {req.budget_eur:g} EUR",
-             f"- **Version:** {version}", ""]
+             f"- **Status:** {status}", f"- **Budget:** {req.budget_eur:g} EUR", f"- **Version:** {version}", ""]
     if warnings:
         lines += ["## Warnings (plan approved with reservations)", ""] + [f"- {w}" for w in warnings] + [""]
-    lines += [render_plan_md(plan, title=None, day_level=2).replace("## Day", "## Day"), ""]
+    lines += [render_plan_md(plan, title=None, day_level=2), ""]
     if finance:
         lines += [finance_md(finance), ""]
     if transit:

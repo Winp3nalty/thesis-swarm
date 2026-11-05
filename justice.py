@@ -62,7 +62,8 @@ def agent_justice(plan: ExpeditionPlan, req: Requirements, rough_plan: RoughItin
 
     # --- Reality checks (internet skills): real places, possible travel times, plausible costs ---
     cost_ref = load_cost_reference(req.cost_profile)
-    reality = reality_check(plan, req.must_visit, req.place_search_names, req.region, cost_ref)
+    reality = reality_check(plan, req.must_visit, req.place_search_names, req.region, cost_ref,
+                            req.place_coordinates)
     quality = quality_check(plan, _is_generic, req.max_days_per_place, cost_ref.get("hotel_night_eur"))
     reality["planner_issues"] += quality["planner_issues"]
     reality["logistics_issues"] += quality["logistics_issues"]
