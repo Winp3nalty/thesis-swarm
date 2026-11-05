@@ -111,6 +111,10 @@ sender's name and mention the university, so an email is ready to send once `sen
 **`workers.py`, `worker_schemas.py`**: Transit (legs between stops) and Outreach (email requesting a lab
 tour) agents with the same schema-plus-retry pattern. `test_workers.py` measures first-attempt valid JSON.
 
+**`coordinator.py`** (also `drive_times`): looks up the OSRM driving time for each leg and hands it to the
+Transit agent as a fact; `validate_transit` rejects minutes far outside it (the model used to invent them).
+Outreach emails are rejected when they claim a project or result of the student group.
+
 **`coordinator.py`**: plain code that runs after the Auditor approves. For each day it takes the plan's
 locations in order and asks Transit for the legs between them; for each outreach target in the scenario
 it asks Outreach for an email. Every handover is permission-checked (auditor to coordinator to

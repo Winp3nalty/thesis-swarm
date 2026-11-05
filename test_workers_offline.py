@@ -132,6 +132,60 @@ def test_outreach_sender_rules():
     assert workers.validate_outreach(anonymous, plain) == [], "no sender given: no extra rules"
 
 
+def test_transit_checked_against_driving_time():
+    stops = ["A", "B", "C"]
+    def plan(m1, m2):
+        return TransitPlan(legs=[TransitLeg(from_stop="A", to_stop="B", mode="metro", minutes=m1, cost_eur=3),
+                                 TransitLeg(from_stop="B", to_stop="C", mode="taxi", minutes=m2, cost_eur=9)])
+    assert workers.validate_transit(plan(45, 10), stops) == [], "no measured time: no extra rule"
+    bad = workers.validate_transit(plan(45, 10), stops, [5.0, None])
+    assert len(bad) == 1 and "leg 1" in bad[0] and "driving takes about 5 min" in bad[0], bad
+    assert workers.validate_transit(plan(25, 10), stops, [12.0, None]) == []
+    assert workers.validate_transit(plan(1, 10), stops, [30.0, None]), "far too fast is also rejected"
+    seen = {}
+    real = run_loop.call_structured_llm
+    run_loop.call_structured_llm = lambda sp, up, rm, temperature=0.2: seen.setdefault("p", up) and good_llm(sp, up, rm)
+    try:
+        workers.agent_transit("Shenzhen", stops, drive_minutes=[12.0, None])
+    finally:
+        run_loop.call_structured_llm = real
+    assert "leg 1: about 12 min by car" in seen["p"] and "leg 2" not in seen["p"].split("Measured")[1], seen["p"]
+
+
+def test_drive_times_from_osrm_skill():
+    import coordinator
+    from requirements_schema import load_scenario
+    calls = []
+    def fake_skill(name, **kw):
+        calls.append(name)
+        if name == "verify_place":
+            return {"ok": True, "result": {"found": kw["place"] != "Ghost", "lat": 22.5, "lon": 114.0}}
+        return {"ok": True, "result": {"minutes": 12.5}}
+    real = coordinator.run_skill
+    coordinator.run_skill = fake_skill
+    try:
+        out = coordinator.drive_times(["DJI", "Hotel", "OCT Loft", "Ghost"], load_scenario("shenzhen_3day"))
+    finally:
+        coordinator.run_skill = real
+    assert out == [None, None, None], out  # Hotel and an unknown place have no coordinates
+    coordinator.run_skill = fake_skill
+    try:
+        assert coordinator.drive_times(["DJI", "OCT Loft"], load_scenario("shenzhen_3day")) == [12.5]
+    finally:
+        coordinator.run_skill = real
+
+
+def test_outreach_rejects_invented_claims():
+    contact = {"name": "Prof. Liang Haotian", "institution": "Shenzhen University", "topics": ["drone swarm"],
+               "city": "Shenzhen"}
+    body = ("We admire your drone swarm work at Shenzhen University. " + " ".join(["word"] * 100)
+            + " Our project on soft grippers is why we ask for a 30-minute lab tour.")
+    email = OutreachEmail(subject="Lab tour request", greeting="Dear Prof. Liang Haotian,", body=body, sign_off="Sincerely")
+    assert any("do not claim any project" in p for p in workers.validate_outreach(email, contact))
+    clean = email.model_copy(update={"body": body.replace("Our project on soft grippers is why we", "We")})
+    assert workers.validate_outreach(clean, contact) == []
+
+
 def test_outreach_validator_rules():
     c = CASES["outreach"][2]  # SUSTech case, uses an alias
     good = good_llm("", f"Institution: {c['institution']}\nProfessor: {c['name']}\n"

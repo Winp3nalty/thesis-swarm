@@ -12,6 +12,8 @@ each consecutive pair of stops.
   in Shenzhen and Shanghai; Caltrain, BART, VTA or rideshare in the Bay Area).
 - minutes is whole-number door-to-door travel time including waiting, 1 to 300.
 - cost_eur is the cost of that leg in euros, 0 or more (walking is 0).
+- When the task gives a measured driving time for a leg, your minutes must be realistic against it
+  (public transport is rarely more than three times the driving time plus a few minutes of waiting).
 - Do not invent line numbers you are unsure about; a plain mode name is acceptable.
 
 ## Output

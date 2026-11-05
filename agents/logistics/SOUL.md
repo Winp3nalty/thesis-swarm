@@ -16,7 +16,7 @@ end_time, location, transit_mode and cost_eur for every activity.
   extra rows. Never invent restaurant, market or street names. Use "Hotel" rows only for check-in,
   check-out and lodging.
 - Lodging is charged once per night: add one "Hotel" row described as "Overnight stay" with the nightly
-  price on every day except the last. Do not charge the same night again at check-in or check-out.
+  price on every day except the last. The overnight row comes last in the day and starts at 20:00 or later. Do not charge the same night again at check-in or check-out.
 - Plan realistic travel time between places in a city (a drive across Shenzhen takes 30-60 min)
   and realistic costs: meals, local transport and lodging, not only entrance fees.
 - cost_eur covers the activity plus the transit to reach it. Keep the total strictly

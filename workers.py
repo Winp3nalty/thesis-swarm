@@ -111,7 +111,7 @@ def _key_words(text: str, stop: set[str] | None = None) -> set[str]:
 # ==========================================
 # TRANSIT AGENT
 # ==========================================
-def validate_transit(plan: TransitPlan, stops: list[str]) -> list[str]:
+def validate_transit(plan: TransitPlan, stops: list[str], drive_minutes: list | None = None) -> list[str]:
     problems = []
     if len(plan.legs) != len(stops) - 1:
         problems.append(f"expected {len(stops) - 1} legs (one per consecutive pair), got {len(plan.legs)}")
@@ -120,10 +120,17 @@ def validate_transit(plan: TransitPlan, stops: list[str]) -> list[str]:
             problems.append(f"leg {i + 1} must start at '{stops[i]}'")
         if _norm(leg.to_stop) != _norm(stops[i + 1]):
             problems.append(f"leg {i + 1} must end at '{stops[i + 1]}'")
+        d = drive_minutes[i] if drive_minutes and i < len(drive_minutes) else None
+        if d is not None:  # a measured driving time exists: a trip far outside it is a made-up number
+            lo, hi = max(2.0, 0.4 * d), 3 * d + 20
+            if not lo <= leg.minutes <= hi:
+                problems.append(f"leg {i + 1} ({stops[i]} to {stops[i + 1]}) takes {leg.minutes} min, but driving takes "
+                                f"about {d:.0f} min; give a time between {lo:.0f} and {hi:.0f} min")
     return problems
 
 
-def agent_transit(city: str, stops: list[str], day: int = 1, max_retries: int = 2):
+def agent_transit(city: str, stops: list[str], day: int = 1, max_retries: int = 2,
+                  drive_minutes: list | None = None):
     if len(stops) < 2:
         raise ValueError("need at least two stops")
     print(f"  [Transit Agent] Routing {len(stops)} stops in {city}...")
@@ -133,13 +140,22 @@ def agent_transit(city: str, stops: list[str], day: int = 1, max_retries: int = 
         + "\n".join(f"{i + 1}. {s}" for i, s in enumerate(stops))
         + "\n\nReturn one leg between each consecutive pair of stops, in this exact order."
     )
+    known = [(i, d) for i, d in enumerate(drive_minutes or []) if d is not None]
+    if known:
+        user_prompt += ("\nMeasured driving time (OpenStreetMap routing, no traffic), use it to judge the trip time:\n"
+                        + "\n".join(f"- leg {i + 1}: about {d:.0f} min by car" for i, d in known) + "\n")
     return run_worker(system_prompt, user_prompt, TransitPlan,
-                      lambda plan: validate_transit(plan, stops), max_retries)
+                      lambda plan: validate_transit(plan, stops, drive_minutes), max_retries)
 
 
 # ==========================================
 # OUTREACH AGENT
 # ==========================================
+INVENTED_CLAIM_PHRASES = ("our project", "our current", "currently developing", "our research", "our work on",
+                          "we are developing", "we have developed", "we are building", "our team has built",
+                          "our own projects", "our thesis")
+
+
 def validate_outreach(email: OutreachEmail, contact: dict) -> list[str]:
     problems = []
     body = _norm(email.body)
@@ -160,6 +176,10 @@ def validate_outreach(email: OutreachEmail, contact: dict) -> list[str]:
     univ = contact.get("sender_university", "").strip()
     if univ and not any(w in body for w in (_key_words(univ, _GENERIC_WORDS) or {_norm(univ)})):
         problems.append(f"the body must say that the group comes from '{univ}'")
+    claims = [p for p in INVENTED_CLAIM_PHRASES if p in body]
+    if claims:
+        problems.append(f"do not claim any project or result of the student group (found '{claims[0]}'); "
+                        "say only that the students are visiting and want to learn")
     if "30" not in email.body and "thirty" not in body:
         problems.append("the body must ask for a 30-minute tour")
     return problems
@@ -179,6 +199,7 @@ def agent_outreach(contact: dict, max_retries: int = 2):
         + (f"Planned travel time: {contact['trip_dates']}.\n" if contact.get("trip_dates") else "")
         + (f"The sender is {contact['sender_name']}; the sign_off must be a closing phrase followed by this name.\n" if contact.get("sender_name") else "")
         +
+        "Never claim a project, research or result of the student group; the group only wants to learn.\n"
         f"Paragraph 1 MUST contain the words \"{contact['institution']}\".\n"
         "Length: write about 165 words in three paragraphs; the body must have at least 150 words.\n"
     )

@@ -135,7 +135,7 @@ def reality_check(plan, required_hubs: list[str], search_names: dict | None = No
             missing = [n for n in range(1, nights + 1) if n not in lodging_charge_days(plan, hotel)]
             if missing:
                 hint = (f" Lodging is missing on day(s) {', '.join(map(str, missing))}: add one 'Hotel' row "
-                        f"described as 'Overnight stay' with a cost of {hotel:g} EUR to each of those days.")
+                        f"described as 'Overnight stay' (evening, 20:00 or later) with a cost of {hotel:g} EUR to each of those days.")
             else:
                 hint = " Lodging is complete, so raise the meal and local transport costs inside the visit rows."
         logistics.append(f"Trip total {trip_total:.2f} EUR is below the realistic minimum of {trip_min:g} EUR. "
@@ -152,7 +152,7 @@ def cost_guide_text(num_days: int, ref: dict | None) -> str:
     nights = max(num_days - 1, 0)
     lines = ["", "Cost guide (the Auditor rejects plans that ignore it):"]
     if nights:
-        lines.append(f"- Lodging: on each of days 1 to {nights} add one 'Hotel' row described as 'Overnight stay' costing "
+        lines.append(f"- Lodging: on each of days 1 to {nights} add one 'Hotel' row described as 'Overnight stay' (evening, 20:00 or later) costing "
                      f"{ref['hotel_night_eur']:g} EUR. The last day has no lodging cost. Do not charge lodging twice.")
     lines += [f"- Meals: about {ref['meals_per_day_eur']:g} EUR per day, as part of the day's activities.",
               f"- Local transport: about {ref['local_transport_per_day_eur']:g} EUR per day.",

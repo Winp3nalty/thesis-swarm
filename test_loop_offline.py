@@ -329,6 +329,26 @@ def main():
     run_loop.agent_tech_planner(opt_req)
     assert "two real visits per day" in seen["p"] and "Shenzhen University" in seen["p"], seen["p"]
     print("[OK] lodging hint names the missing nights; the Planner is offered optional places")
+    # The Planner is told how many distinct places there are, and which are still unused after a draft.
+    seen2 = {}
+    run_loop.call_structured_llm = lambda sp, up, rm, temperature=0.2: seen2.setdefault("p", up) and fake_llm(sp, up, rm)
+    few = load_scenario("shenzhen_3day").model_copy(update={"optional_places": ["Alpha Lab", "Beta Lab"]})
+    run_loop.agent_tech_planner(few)  # 3 hubs + 2 optional = 5 places for 6 slots
+    assert "5 distinct places for 6 visit slots" in seen2["p"], seen2["p"]
+    seen3 = {}
+    run_loop.call_structured_llm = lambda sp, up, rm, temperature=0.2: seen3.setdefault("p", up) and fake_llm(sp, up, rm)
+    prev = fake_llm("", "", RoughItinerary)  # uses DJI, HAX, Huaqiangbei
+    run_loop.agent_tech_planner(few, prev, ["'DJI' is a repeated visit"])
+    assert "not used yet: Alpha Lab, Beta Lab" in seen3["p"], seen3["p"]
+    # An overnight stay in the afternoon is a soft logistics problem.
+    import plan_quality
+    day = [act("09:00", "11:00", "DJI"), {**act("14:00", "16:00", "Hotel", "Overnight stay", 40.0)}]
+    q = plan_quality.quality_check(plan_with([day]), reality._is_generic if hasattr(reality, "_is_generic") else (lambda n: n == "Hotel"), 1, 40.0)
+    assert any("'Overnight stay' row starts at 14:00" in n and run_loop.is_soft_note(n) for n in q["logistics_issues"]), q
+    day[1]["start_time"], day[1]["end_time"] = "21:00", "23:00"
+    q2 = plan_quality.quality_check(plan_with([day]), lambda n: n == "Hotel", 1, 40.0)
+    assert not any("Overnight" in n for n in q2["logistics_issues"]), q2
+    print("[OK] Planner told the slot count and unused places; afternoon overnight rows are flagged")
     # A place the Planner chose and the map does not know goes back to the Planner; one only Logistics wrote stays.
     rough = RoughItinerary.model_validate({"destination": "Shenzhen", "days": [
         {"day": 1, "focus_topic": "x", "target_hubs": [{"hub_name": "Ghost Lab", "purpose": "p"}]}]})

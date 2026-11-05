@@ -251,6 +251,11 @@ def agent_tech_planner(
         "list both in target_hubs for that day. A day with a single visit is acceptable only when nothing "
         "suitable is left.\n"
     )
+    pool = list(dict.fromkeys(req.must_visit + req.optional_places))
+    if len(pool) < 2 * req.days:
+        user_prompt += (f"You have {len(pool)} distinct places for {2 * req.days} visit slots. Use every place at most "
+                        "once. When the places run out, give the remaining days a single visit; never repeat a place "
+                        "to fill a slot.\n")
     if req.optional_places:
         user_prompt += ("Real places you may add as extra visits (use these exact names; other places only if you "
                         f"are sure they exist): {', '.join(req.optional_places)}\n")
@@ -261,6 +266,10 @@ def agent_tech_planner(
             "\nFIX THESE HUB ERRORS WITHOUT REMOVING EXISTING VALID HUBS:\n"
             + "\n".join(f"- {note}" for note in critique_feedback)
         )
+        used = {h.hub_name.strip().lower() for d in previous_plan.days for h in d.target_hubs}
+        unused = [p for p in pool if p.lower() not in used]
+        user_prompt += ("\nPlaces from the lists not used yet: " + ", ".join(unused) + "\n") if unused else \
+            "\nEvery listed place is already used; give a day a single visit rather than repeating a place.\n"
     plan = call_structured_llm(system_prompt, user_prompt, RoughItinerary, temperature=temperature)
     if previous_plan and plan.model_dump() == previous_plan.model_dump():
         # Same prompt, same feedback, same answer: say so and sample more freely (as Logistics does).

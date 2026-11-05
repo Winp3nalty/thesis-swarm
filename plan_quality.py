@@ -12,7 +12,8 @@ from __future__ import annotations
 # OpenStreetMap does not know: its free-text search misses many restaurants and markets, so that is
 # weak evidence and ends as a warning, never as a rejection).
 SOFT_MARKERS = ("below the realistic minimum", "was not found on OpenStreetMap", "(the last day) has no real visit",
-                "repeated visit", "mostly hotel time", "more than one hotel check-", "Lodging is charged")
+                "repeated visit", "mostly hotel time", "more than one hotel check-", "Lodging is charged",
+                "'Overnight stay' row starts at")
 
 _CHECK_IN = ("check-in", "check in", "checkin")
 _CHECK_OUT = ("check-out", "check out", "checkout")
@@ -69,4 +70,16 @@ def quality_check(plan, is_generic, max_days_per_place: int = 1, hotel_eur: floa
         if nights and len(charges) > nights:
             logistics.append(f"Lodging is charged {len(charges)} times (about {hotel_eur:g} EUR each), but the trip "
                              f"has only {nights} nights. Charge each night once.")
+
+    # 5. an overnight stay belongs to the evening
+    for d in plan.days:
+        for a in d.activities:
+            if "overnight" in a.activity_description.lower() and any(w in a.location.lower() for w in _LODGING_WORDS):
+                try:
+                    hour = int(a.start_time.split(":")[0])
+                except ValueError:
+                    continue
+                if hour < 18:
+                    logistics.append(f"Day {d.day}: the 'Overnight stay' row starts at {a.start_time}. Schedule it in "
+                                     "the evening (20:00 or later), after the last visit.")
     return {"planner_issues": planner, "logistics_issues": logistics}

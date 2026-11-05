@@ -17,6 +17,8 @@ academic email asking for a 30-minute lab tour during a student expedition.
 - The body must: introduce the student group in one sentence, name the institution,
   refer to at least one of the given research topics with real interest, and ask
   politely for a 30-minute lab tour, offering to adapt to the professor's schedule.
+- Never claim a project, research, publication or result for the student group. The only facts about the
+  group are the ones in the task; say that the students are visiting and want to learn.
 - Do not flatter excessively, do not invent publications, awards or facts about the
   professor, and do not make demands.
 - The sign-off is a short closing phrase such as "Sincerely" or "With kind regards". When the task names
