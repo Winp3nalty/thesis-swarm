@@ -18,16 +18,31 @@ real data and sent back for repair until it passes, or ends with the reasons it 
 ```powershell
 .\setup.ps1                                                    # first run: installs everything, runs the default scenario
 .\setup.ps1 -ScriptArgs "--scenario shenzhen_7day --modes none --repeats 3"
-python plausibility.py shenzhen_7day                           # check a scenario and its place names
-python test_core.py; python test_loop_offline.py               # offline tests, no model needed
+python -m swarm.code_agents.plausibility shenzhen_7day         # check a scenario and its place names
+python tests/test_core.py; python tests/test_loop_offline.py   # offline tests, no model needed
 ```
 A place OpenStreetMap cannot find (for example HAX) can get coordinates in the scenario: `"place_coordinates": {"HAX": [lat, lon]}` (copy them from a map). Then its driving times are measured too.
 Choose the model in `model.txt` (default `qwen3:8b`, needs Ollama). Set `SWARM_OFFLINE=1` to avoid internet calls.
 
+## Project layout
+```
+run_loop.py            the main program (start here)
+swarm/
+  core/          state machine, handoffs, schemas, scenario format, prompt loader, version stamp, paths
+  llm_agents/    the agents that call the model, one file each: tech_planner, logistics, justice, transit, outreach
+                 plus client.py (the one place that talks to Ollama), retry.py (shared retry loop), textcheck.py
+  code_agents/   plain code, no model: audit, plausibility, dispatcher, finance, local_logistics, static_web,
+                 reality, plan_quality, route_order, practical
+  output/        output_writer (outputs/<run>/ files), batch_summary (summary_*.md)
+  skills/        deterministic tools: budget and schedule checks, OpenStreetMap, OSRM, exchange rate
+prompts/<agent>/SOUL.md   the persona and rules of each model-driven agent
+data/  scenarios/  tests/  docs/
+```
+
 ## Where to read more
-- [CODE_TOUR.md](CODE_TOUR.md): every module in plain words, with likely questions and answers
-- [ARCHITECTURE.md](ARCHITECTURE.md): design, agent roles, what is built and what is planned
-- [THIRD_PARTY.md](THIRD_PARTY.md): Edict (cft0808/edict, MIT) was used as design inspiration only
+- [docs/CODE_TOUR.md](docs/CODE_TOUR.md): every module in plain words, with likely questions and answers
+- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md): design, agent roles, what is built and what is planned
+- [docs/THIRD_PARTY.md](docs/THIRD_PARTY.md): Edict (cft0808/edict, MIT) was used as design inspiration only
 
 Every result row records the version (`version.txt`), the git commit and a hash of the prompts and
 price tables, so each number can be traced to the exact code that produced it.

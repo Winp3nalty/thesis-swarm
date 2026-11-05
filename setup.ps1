@@ -5,8 +5,8 @@
 # Installs everything per-user (no admin rights needed): Python, venv + packages, Ollama, model.
 # Usage:
 #   .\setup.ps1                                          -> sets up, then runs run_loop.py (the swarm)
-#   .\setup.ps1 -Script test_workers.py                  -> sets up, then runs the Week 3 worker test
-#   .\setup.ps1 -Script test_workers.py -ScriptArgs "--limit 3"
+#   .\setup.ps1 -Script tests\test_workers.py                  -> sets up, then runs the Week 3 worker test
+#   .\setup.ps1 -Script tests\test_workers.py -ScriptArgs "--limit 3"
 #   .\setup.ps1 -Model qwen3:14b                         -> one run with another model (default: model.txt)
 param(
     [string]$Script = "run_loop.py",
@@ -16,7 +16,7 @@ param(
 
 $ProgressPreference = 'SilentlyContinue'
 
-# Always work from the folder this script lives in (run_loop.py and schemas.py are here)
+# Always work from the folder this script lives in (run_loop.py is here)
 Set-Location $PSScriptRoot
 
 # Model choice, highest priority first: -Model argument, $env:SWARM_MODEL, model.txt, qwen3:8b.
@@ -209,11 +209,14 @@ if ($LASTEXITCODE -ne 0) { Fail "Could not pull $model (disk quota or network?).
 # ---------------------------------------------------------------
 # 7. Make sure the project files are present
 # ---------------------------------------------------------------
-foreach ($f in @($Script, "run_loop.py", "schemas.py", "state_machine.py", "handoff.py", "soul_loader.py",
-                 "worker_schemas.py", "workers.py", "output_writer.py", "model.txt", "version.txt", "version_info.py", "reality.py", "plan_quality.py", "plausibility.py", "batch_summary.py", "coordinator.py", "practical.py", "data\\practical\\shenzhen.json", "data\\practical\\silicon_valley.json", "deps.py", "requirements.txt", "requirements_schema.py", "scenarios\shenzhen_3day.json", "scenarios\shenzhen_7day.json", "scenarios\silicon_valley_7day.json", "data\cost\shenzhen.json", "data\cost\silicon_valley.json", "tests\w3_cases.json",
-                 "skills\__init__.py", "skills\builtin.py", "skills\web.py",
-                 "agents\tech_planner\SOUL.md", "agents\logistics\SOUL.md", "agents\auditor\SOUL.md",
-                 "agents\transit\SOUL.md", "agents\outreach\SOUL.md")) {
+foreach ($f in @($Script, "run_loop.py", "model.txt", "version.txt", "requirements.txt",
+                 "swarm\__init__.py", "swarm\core\paths.py", "swarm\core\deps.py", "swarm\llm_agents\client.py",
+                 "swarm\skills\__init__.py", "swarm\code_agents\dispatcher.py", "swarm\output\output_writer.py",
+                 "scenarios\shenzhen_3day.json", "scenarios\shenzhen_7day.json", "scenarios\silicon_valley_7day.json",
+                 "data\cost\shenzhen.json", "data\cost\silicon_valley.json",
+                 "data\practical\shenzhen.json", "data\practical\silicon_valley.json", "tests\w3_cases.json",
+                 "prompts\tech_planner\SOUL.md", "prompts\logistics\SOUL.md", "prompts\justice\SOUL.md",
+                 "prompts\transit\SOUL.md", "prompts\outreach\SOUL.md")) {
     if (!(Test-Path (Join-Path $PSScriptRoot $f))) { Fail "$f not found next to setup.ps1." }
 }
 
