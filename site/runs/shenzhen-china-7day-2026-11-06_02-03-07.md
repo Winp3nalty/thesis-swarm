@@ -11,26 +11,26 @@ outline: [2, 3]
 | Version | v0.9.13 (git ?, rules bdc37439) |
 | Model | qwen3:8b |
 | GPU | NVIDIA GeForce RTX 3080 |
-| Iterations | 2 |
-| Total cost | 570.00 EUR per person |
-| Run | 2026-11-06_01-09-42 |
+| Iterations | 1 |
+| Total cost | 575.00 EUR per person |
+| Run | 2026-11-06_02-03-07 |
 
 
 - **Status:** SUCCESS
 - **Budget:** 1800 EUR
-- **Version:** v0.9.13 (git 4442429, rules bdc37439)
+- **Version:** v0.9.13 (git 3c12367, rules bdc37439)
 - **Hotel:** Placeholder Hotel Nanshan (near the Science Park)
 
 - **Destination:** Shenzhen, China
 - **Days:** 7
-- **Total cost (summed from activities):** 570.00 EUR
+- **Total cost (summed from activities):** 565.00 EUR
 
 ## Day 1: Robotics & Drone Innovation
 
 | Time | Location | What happens | Transit | Cost (EUR) |
 |---|---|---|---|---|
 | 09:00-11:00 | DJI | Visit the drone manufacturing and innovation hub | not planned (from hotel) | 15.00 |
-| 11:30-12:00 | InnoX | Explore the startup incubator for robotics and tech | Bus | 10.00 |
+| 11:30-12:00 | InnoX | Explore the innovation and startup ecosystem | Taxi | 10.00 |
 | 12:00-14:00 | Meals and local transport | Meals and local transport for the day (estimate from the price table) | metro/taxi | 35.00 |
 | 20:00-23:59 | Hotel: Placeholder Hotel Nanshan (near the Science Park) | Hotel check-in and overnight stay | none | 40.00 |
 
@@ -40,79 +40,79 @@ Day total: 100.00 EUR
 
 | Time | Location | What happens | Transit | Cost (EUR) |
 |---|---|---|---|---|
-| 09:00-11:00 | HAX | Tour the hardware startup incubator and innovation space | not planned (from hotel) | 12.00 |
-| 11:30-12:00 | SEG Electronics Market | Source components and explore electronics trading | Bus | 0.00 |
+| 09:30-11:30 | HAX | Visit the hardware startup incubator | not planned (from hotel) | 12.00 |
 | 12:00-14:00 | Meals and local transport | Meals and local transport for the day (estimate from the price table) | metro/taxi | 35.00 |
+| 14:00-14:30 | SEG Electronics Market | Explore electronics sourcing and components | Bus | 0.00 |
 | 20:00-23:59 | Hotel: Placeholder Hotel Nanshan (near the Science Park) | Overnight stay | none | 40.00 |
 
 Day total: 87.00 EUR
 
-## Day 3: University Research & Tech Ecosystem
+## Day 3: University & Research Collaboration
 
 | Time | Location | What happens | Transit | Cost (EUR) |
 |---|---|---|---|---|
-| 09:00-11:00 | Southern University of Science and Technology | Visit the university's robotics and engineering labs | not planned (from hotel) | 0.00 |
-| 11:30-12:00 | Nanshan Science and Technology Park | Explore the research and development ecosystem | Metro | 8.00 |
+| 09:00-11:00 | Southern University of Science and Technology | Engage with academic and research institutions | not planned (from hotel) | 0.00 |
+| 11:30-12:00 | Nanshan Science and Technology Park | Visit a science and technology park for collaboration | Metro | 8.00 |
 | 12:00-14:00 | Meals and local transport | Meals and local transport for the day (estimate from the price table) | metro/taxi | 35.00 |
 | 20:00-23:59 | Hotel: Placeholder Hotel Nanshan (near the Science Park) | Overnight stay | none | 40.00 |
 
 Day total: 83.00 EUR
 
-## Day 4: Tech Parks & Innovation Hubs
+## Day 4: Tech Infrastructure & Innovation Hubs
 
 | Time | Location | What happens | Transit | Cost (EUR) |
 |---|---|---|---|---|
-| 09:00-11:00 | Shenzhen Bay Science and Technology Ecological Park | Tour the tech park and innovation centers | not planned (from hotel) | 10.00 |
-| 11:30-12:00 | OCT Loft | Visit the creative and tech hub for startups | Metro | 12.00 |
+| 09:00-11:00 | Shenzhen Science and Technology Museum | Explore the city's tech history and innovation | not planned (from hotel) | 5.00 |
+| 11:30-12:00 | Shenzhen Bay Science and Technology Ecological Park | Visit a modern tech and innovation park | Metro | 10.00 |
 | 12:00-14:00 | Meals and local transport | Meals and local transport for the day (estimate from the price table) | metro/taxi | 35.00 |
 | 20:00-23:59 | Hotel: Placeholder Hotel Nanshan (near the Science Park) | Overnight stay | none | 40.00 |
 
-Day total: 97.00 EUR
+Day total: 90.00 EUR
 
-## Day 5: Hardware & Electronics Markets
+## Day 5: Design & Creative Spaces
 
 | Time | Location | What happens | Transit | Cost (EUR) |
 |---|---|---|---|---|
-| 09:00-12:00 | Huaqiangbei | Explore the electronics market and sourcing opportunities | not planned (from hotel) | 0.00 |
+| 09:30-11:30 | OCT Loft | Explore creative and design spaces | not planned (from hotel) | 8.00 |
+| 12:00-14:00 | Meals and local transport | Meals and local transport for the day (estimate from the price table) | metro/taxi | 35.00 |
+| 14:00-14:30 | Tencent Binhai Building | Visit a tech company's innovation center | Taxi | 12.00 |
+| 20:00-23:59 | Hotel: Placeholder Hotel Nanshan (near the Science Park) | Overnight stay | none | 40.00 |
+
+Day total: 95.00 EUR
+
+## Day 6: Marketplace & Electronics
+
+| Time | Location | What happens | Transit | Cost (EUR) |
+|---|---|---|---|---|
+| 09:00-11:00 | Huaqiangbei | Visit the electronics and hardware marketplace | not planned (from hotel) | 0.00 |
 | 12:00-14:00 | Meals and local transport | Meals and local transport for the day (estimate from the price table) | metro/taxi | 35.00 |
 | 20:00-23:59 | Hotel: Placeholder Hotel Nanshan (near the Science Park) | Overnight stay | none | 40.00 |
 
 Day total: 75.00 EUR
 
-## Day 6: Tech Companies & Innovation
-
-| Time | Location | What happens | Transit | Cost (EUR) |
-|---|---|---|---|---|
-| 09:00-11:00 | Tencent Binhai Building | Tour the headquarters of a major tech company | not planned (from hotel) | 10.00 |
-| 11:30-12:00 | Shenzhen University | Visit the university's engineering and robotics labs | Bus | 0.00 |
-| 12:00-14:00 | Meals and local transport | Meals and local transport for the day (estimate from the price table) | metro/taxi | 35.00 |
-| 20:00-23:59 | Hotel: Placeholder Hotel Nanshan (near the Science Park) | Overnight stay | none | 40.00 |
-
-Day total: 85.00 EUR
-
 ## Day 7: Logistics & Departure
 
 | Time | Location | What happens | Transit | Cost (EUR) |
 |---|---|---|---|---|
-| 09:00-11:00 | Shenzhen Science and Technology Museum | Final visit to the museum for a recap and reflection | not planned (from hotel) | 8.00 |
+| 09:00-11:00 | Shenzhen University | Final visit to a major academic institution | not planned (from hotel) | 0.00 |
 | 12:00-14:00 | Meals and local transport | Meals and local transport for the day (estimate from the price table) | metro/taxi | 35.00 |
 
-Day total: 43.00 EUR
+Day total: 35.00 EUR
 
 
 ## Cost report (Finance)
 
 | Day | Visits | Meals | Local transport | Transit extra | Lodging | Total (EUR) | Total (CNY) |
 |---|---|---|---|---|---|---|---|
-| 1 | 25.00 | 25.00 | 10.00 | 0.00 | 40.00 | 100.00 | 748 |
+| 1 | 25.00 | 25.00 | 10.00 | 5.00 | 40.00 | 105.00 | 786 |
 | 2 | 12.00 | 25.00 | 10.00 | 0.00 | 40.00 | 87.00 | 651 |
 | 3 | 8.00 | 25.00 | 10.00 | 0.00 | 40.00 | 83.00 | 621 |
-| 4 | 22.00 | 25.00 | 10.00 | 0.00 | 40.00 | 97.00 | 726 |
-| 5 | 0.00 | 25.00 | 10.00 | 0.00 | 40.00 | 75.00 | 561 |
-| 6 | 10.00 | 25.00 | 10.00 | 0.00 | 40.00 | 85.00 | 636 |
-| 7 | 8.00 | 25.00 | 10.00 | 0.00 | 0.00 | 43.00 | 322 |
+| 4 | 15.00 | 25.00 | 10.00 | 0.00 | 40.00 | 90.00 | 674 |
+| 5 | 20.00 | 25.00 | 10.00 | 5.00 | 40.00 | 100.00 | 748 |
+| 6 | 0.00 | 25.00 | 10.00 | 0.00 | 40.00 | 75.00 | 561 |
+| 7 | 0.00 | 25.00 | 10.00 | 0.00 | 0.00 | 35.00 | 262 |
 
-- **Total:** 570.00 EUR (about 4266 CNY), budget 1800 EUR, 1230.00 EUR left
+- **Total:** 575.00 EUR (about 4304 CNY), budget 1800 EUR, 1225.00 EUR left
 - Meals and local transport are allowances from the city price table (data/cost/), not measured prices.
 - Transit estimates were compared with the transport allowance on 5 day(s); a higher estimate is added in 'Transit extra'.
 - Exchange rate: 1 EUR = 7.4846 CNY (cache, 2026-11-05).
@@ -120,11 +120,11 @@ Day total: 43.00 EUR
 
 ## Routes
 
-- **Day 1:** DJI → InnoX (20 min, 1.20 EUR)
+- **Day 1:** DJI → InnoX (25 min, 15.00 EUR)
 - **Day 2:** HAX → SEG Electronics Market (12 min, 1.20 EUR)
-- **Day 3:** Southern University of Science and Technology → Nanshan Science and Technology Park (25 min, 5.00 EUR)
-- **Day 4:** Shenzhen Bay Science and Technology Ecological Park → OCT Loft (15 min, 3.00 EUR)
-- **Day 6:** Tencent Binhai Building → Shenzhen University (25 min, 1.20 EUR)
+- **Day 3:** Southern University of Science and Technology → Nanshan Science and Technology Park (25 min, 3.50 EUR)
+- **Day 4:** Shenzhen Science and Technology Museum → Shenzhen Bay Science and Technology Ecological Park (35 min, 4.50 EUR)
+- **Day 5:** OCT Loft → Tencent Binhai Building (25 min, 15.00 EUR)
 
 ## Outreach emails
 
