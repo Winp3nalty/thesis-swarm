@@ -8,7 +8,7 @@ outline: [2, 3]
 | | |
 |---|---|
 | Status | SUCCESS |
-| Version | v0.9.13 (git ?, rules bdc37439) |
+| Version | v0.9.13 (git 3c12367, rules bdc37439) |
 | Model | qwen3:8b |
 | GPU | NVIDIA GeForce RTX 3080 |
 | Iterations | 3 |
