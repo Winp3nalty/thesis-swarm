@@ -73,7 +73,7 @@ def run_page(run: dict, with_emails: bool) -> str:
     if not with_emails:
         md = without_emails(md)
     title = f"{run['destination']}, {run['days']} days" if run["days"] else run["destination"]
-    rows = [("Status", meta.get("status", "?")), ("Version", f"{meta.get('version', '?')} (git {meta.get('git', '?')}, rules {meta.get('rules_hash', '?')})"),
+    rows = [("Status", meta.get("status", "?")), ("Version", f"{meta.get('version', '?')} (git {meta.get('git_commit') or meta.get('git') or '?'}, rules {meta.get('rules_hash', '?')})"),
             ("Model", meta.get("model", "?")), ("GPU", meta.get("gpu", "?")), ("Iterations", meta.get("iterations", "?")),
             ("Total cost", f"{fin['total_eur']:.2f} EUR per person" if fin.get("total_eur") is not None else "?"),
             ("Run", run["stamp"])]

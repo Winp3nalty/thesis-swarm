@@ -36,7 +36,7 @@ def make_run(outputs: Path, stamp: str, status="SUCCESS", handbook=True, days=7,
     if handbook:
         (d / "handbook.md").write_text(HANDBOOK, encoding="utf-8")
     (d / "run.json").write_text(json.dumps({"status": status, "model": "qwen3:8b", "gpu": "RTX", "iterations": 2, "version": "v9",
-                                            "git": "abc", "rules_hash": "r1", "finance": {"total_eur": 585.0}}), encoding="utf-8")
+                                            "git_commit": "abc1234", "rules_hash": "r1", "finance": {"total_eur": 585.0}}), encoding="utf-8")
     (d / "requirements.json").write_text(json.dumps({"destination": dest, "days": days}), encoding="utf-8")
     return d
 
@@ -67,6 +67,7 @@ def test_publish_picks_published_runs_and_writes_pages():
         page = (site / "runs" / pages[0]).read_text(encoding="utf-8")
         assert page.startswith('---\ntitle: "Shenzhen, China, 7 days"') and "585.00 EUR per person" in page
         assert "Dear Prof. Zhou" not in page and "{{" not in page and "# Expedition handbook" not in page
+        assert "(git abc1234, rules r1)" in page, "the commit hash is read from run.json key git_commit"
         bench = (site / "benchmarks" / "summary_shenzhen_7day_2026-11-05_14-00-00.md").read_text(encoding="utf-8")
         assert bench.startswith('---\ntitle: "Batch summary: shenzhen_7day"\n---'), bench[:80]  # a colon needs quotes in YAML
         home = (site / "index.md").read_text(encoding="utf-8")
